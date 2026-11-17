@@ -6,7 +6,9 @@
 
 # Credentials
 .env
+.env.*
 *.tfvars
+!*.tfvars.example
 
 # Python
 __pycache__/
