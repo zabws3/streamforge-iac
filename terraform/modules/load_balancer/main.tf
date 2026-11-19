@@ -1,0 +1,43 @@
+resource "docker_image" "nginx" {
+  name = var.image
+}
+
+resource "local_file" "nginx_config" {
+  filename = "${path.module}/nginx.conf"
+
+  content = <<-EOF
+    upstream streamforge {
+      ${join("\n", [for container in var.web_containers : "server ${container}:3000;"])}
+    }
+
+    server {
+      listen 80;
+
+      location / {
+        proxy_pass http://streamforge;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+      }
+    }
+  EOF
+}
+
+resource "docker_container" "nginx" {
+  name  = "${var.environment}_load_balancer"
+  image = docker_image.nginx.image_id
+
+  ports {
+    external = var.external_port
+    internal = 80
+  }
+
+  networks_advanced {
+    name = var.network
+  }
+
+  mounts {
+    type   = "bind"
+    source = local_file.nginx_config.filename
+    target = "/etc/nginx/conf.d/default.conf"
+  }
+}
