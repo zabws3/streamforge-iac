@@ -2,7 +2,7 @@ resource "docker_image" "web" {
   name = var.image
 
   build {
-    context    = "../../app"
+    context = abspath("${path.module}/../../../app")
     dockerfile = "Dockerfile"
   }
 }

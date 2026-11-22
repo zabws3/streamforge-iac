@@ -1,7 +1,7 @@
 ############ PROMETHEUS ###################
 
 resource "local_file" "prometheus_config" {
-  filename = "${path.module}/prometheus.yml"
+  filename=abspath("${path.root}/generated/prometheus.yml")
 
   content = <<-EOF
     global:
@@ -83,7 +83,7 @@ resource "docker_container" "cadvisor" {
     target = "/dev/disk"
   }
 }
-################### GRAFANA ###################3
+################### GRAFANA ###################
 resource "docker_image" "grafana" {
   name = var.grafana_image
 }
@@ -120,7 +120,7 @@ resource "docker_container" "grafana" {
 
 
 resource "local_file" "grafana_datasource" {
-  filename = "${path.module}/datasource.yml"
+  filename = abspath("${path.root}/generated/datasource.yml")
 
   content = <<-EOF
 apiVersion: 1
@@ -136,7 +136,7 @@ EOF
 ############### LOKI #################
 
 resource "local_file" "loki_config" {
-  filename = "${path.module}/loki-config.yml"
+  filename = abspath("${path.root}/generated/loki-config.yml")
   content = file("${path.module}/loki.yml")
 }
 
@@ -173,7 +173,7 @@ resource "docker_container" "loki" {
 ################### ALLOY ###################
 
 resource "local_file" "alloy_config" {
-  filename = "${path.module}/alloy-config.alloy"
+  filename = abspath("${path.root}/generated/alloy-config.alloy")
 
   content = templatefile("${path.module}/config.alloy", {
     environment = var.environment
@@ -217,7 +217,7 @@ resource "docker_container" "alloy" {
 ############### ALLOY - LOKI ###############
 
 resource "local_file" "grafana_loki_datasource" {
-  filename = "${path.module}/datasource-loki.yml"
+  filename = abspath("${path.root}/generated/datasource-loki.yml")
 
   content = <<-EOF
 apiVersion: 1

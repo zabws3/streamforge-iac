@@ -3,7 +3,7 @@ resource "docker_image" "nginx" {
 }
 
 resource "local_file" "nginx_config" {
-  filename = "${path.module}/nginx.conf"
+  filename = abspath("${path.root}/generated/nginx.conf")
 
   content = <<-EOF
     upstream streamforge {

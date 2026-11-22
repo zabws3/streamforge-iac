@@ -25,4 +25,11 @@ resource "docker_container" "database" {
     volume_name    = docker_volume.database.name
     container_path = "/var/lib/mysql"
   }
+
+  mounts {
+  type   = "bind"
+  source = abspath("${path.module}/../../../db/init.sql")
+  target = "/docker-entrypoint-initdb.d/init.sql"
+  }
+
 }
