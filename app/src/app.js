@@ -173,8 +173,27 @@ app.use("/api/admin", adminRoutes);
 
 
 async function startServer() {
+    const maxRetries = 30;
+    const retryDelay = 2000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            await db.query("SELECT 1");
+            console.log("MySQL conectado correctamente");
+            break;
+        } catch (error) {
+            console.log(`MySQL no está listo (intento ${attempt}/${maxRetries})`);
+
+            if (attempt === maxRetries) {
+                console.error("No se pudo conectar a MySQL:", error.message);
+                process.exit(1);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+    }
+
     try {
-        await db.query("SELECT 1");
         await seedDemoUsers();
 
         app.listen(PORT, () => {
