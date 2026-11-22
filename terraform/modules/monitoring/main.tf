@@ -2,7 +2,8 @@
 
 resource "local_file" "prometheus_config" {
   filename=abspath("${path.root}/generated/prometheus.yml")
-
+  file_permission      = "0644"
+  directory_permission = "0755"
   content = <<-EOF
     global:
       scrape_interval: 15s
@@ -121,7 +122,8 @@ resource "docker_container" "grafana" {
 
 resource "local_file" "grafana_datasource" {
   filename = abspath("${path.root}/generated/datasource.yml")
-
+  file_permission      = "0644"
+  directory_permission = "0755"
   content = <<-EOF
 apiVersion: 1
 
@@ -137,6 +139,8 @@ EOF
 
 resource "local_file" "loki_config" {
   filename = abspath("${path.root}/generated/loki-config.yml")
+  file_permission      = "0644"
+  directory_permission = "0755"
   content = file("${path.module}/loki.yml")
 }
 
@@ -174,7 +178,8 @@ resource "docker_container" "loki" {
 
 resource "local_file" "alloy_config" {
   filename = abspath("${path.root}/generated/alloy-config.alloy")
-
+  file_permission      = "0644"
+  directory_permission = "0755"
   content = templatefile("${path.module}/config.alloy", {
     environment = var.environment
   })
@@ -218,7 +223,8 @@ resource "docker_container" "alloy" {
 
 resource "local_file" "grafana_loki_datasource" {
   filename = abspath("${path.root}/generated/datasource-loki.yml")
-
+  file_permission      = "0644"
+  directory_permission = "0755"
   content = <<-EOF
 apiVersion: 1
 

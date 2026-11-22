@@ -4,7 +4,8 @@ resource "docker_image" "nginx" {
 
 resource "local_file" "nginx_config" {
   filename = abspath("${path.root}/generated/nginx.conf")
-
+  file_permission      = "0644"
+  directory_permission = "0755"
   content = <<-EOF
     upstream streamforge {
       ${join("\n", [for container in var.web_containers : "server ${container}:3000;"])}
