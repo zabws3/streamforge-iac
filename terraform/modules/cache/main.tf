@@ -10,8 +10,5 @@ resource "docker_container" "redis" {
     name = var.network
   }
 
-  ports {
-    internal = 6379
-  }
 }
 

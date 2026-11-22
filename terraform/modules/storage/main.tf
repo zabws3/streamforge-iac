@@ -1,5 +1,5 @@
 resource "docker_image" "minio" {
-  name = "minio/minio:latest"
+  name = "pgsty/silo:RELEASE.2026-11-12T00-00-00Z"
 }
   
 resource "docker_volume" "storage" {

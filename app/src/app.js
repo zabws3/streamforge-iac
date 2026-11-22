@@ -13,6 +13,13 @@ const seedDemoUsers = require("./scripts/seedDemoUsers");
 
 
 const app = express();
+const os = require("os");
+const INSTANCE_ID = os.hostname();
+app.get("/instance", (req, res) => {
+    res.json({
+        instance: INSTANCE_ID
+    });
+});
 
 const PORT = 3000;
 
