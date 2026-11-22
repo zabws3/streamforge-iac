@@ -6,6 +6,10 @@ variable "network" {
   type = string
 }
 
+variable "frontend_network" {
+  type = string
+}
+
 variable "web_containers" {
   type = list(string)
 }
@@ -41,4 +45,3 @@ variable "alloy_image" {
   type    = string
   default = "grafana/alloy:latest"
 }
-

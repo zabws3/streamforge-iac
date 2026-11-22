@@ -106,6 +106,10 @@ resource "docker_container" "grafana" {
     name = var.network
   }
 
+  networks_advanced {
+    name = var.frontend_network
+  }
+
   mounts {
     type   = "bind"
     source = local_file.grafana_datasource.filename
@@ -236,5 +240,4 @@ datasources:
     isDefault: false
 EOF
 }
-
 

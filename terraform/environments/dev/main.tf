@@ -93,8 +93,9 @@ module "load_balancer" {
 module "monitoring" {
   source = "../../modules/monitoring"
 
-  environment = var.environment
-  network    = "${var.environment}_monitoring"
+  environment      = var.environment
+  network          = "${var.environment}_monitoring"
+  frontend_network = "${var.environment}_frontend"
 
   web_containers = [
     "${var.environment}_web_1",
@@ -104,9 +105,5 @@ module "monitoring" {
   grafana_port           = 3001
   grafana_admin_password = var.grafana_password
 
-  depends_on = [
-    module.network,
-    module.web,
-    module.load_balancer
-  ]
+  depends_on = [module.network]
 }
