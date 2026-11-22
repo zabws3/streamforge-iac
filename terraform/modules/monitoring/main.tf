@@ -1,10 +1,10 @@
 ############ PROMETHEUS ###################
 
 resource "local_file" "prometheus_config" {
-  filename=abspath("${path.root}/generated/prometheus.yml")
+  filename             = abspath("${path.root}/generated/prometheus.yml")
   file_permission      = "0644"
   directory_permission = "0755"
-  content = <<-EOF
+  content              = <<-EOF
     global:
       scrape_interval: 15s
 
@@ -22,6 +22,14 @@ resource "docker_image" "prometheus" {
 resource "docker_container" "prometheus" {
   name  = "${var.environment}_prometheus"
   image = docker_image.prometheus.image_id
+
+  healthcheck {
+    test         = ["CMD", "/bin/wget", "-qO-", "http://127.0.0.1:9090/-/healthy"]
+    interval     = "15s"
+    timeout      = "5s"
+    retries      = 3
+    start_period = "30s"
+  }
 
   mounts {
     type   = "bind"
@@ -93,6 +101,14 @@ resource "docker_container" "grafana" {
   name  = "${var.environment}_grafana"
   image = docker_image.grafana.image_id
 
+  healthcheck {
+    test         = ["CMD", "/usr/bin/curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3000/api/health"]
+    interval     = "30s"
+    timeout      = "10s"
+    retries      = 3
+    start_period = "60s"
+  }
+
   env = [
     "GF_SECURITY_ADMIN_PASSWORD=${var.grafana_admin_password}"
   ]
@@ -118,17 +134,31 @@ resource "docker_container" "grafana" {
   mounts {
     type   = "bind"
     source = local_file.grafana_loki_datasource.filename
-    target = "/etc/grafana/provisioning/datasources/loki.yml"       # Loki
+    target = "/etc/grafana/provisioning/datasources/loki.yml" # Loki
+  }
+
+  mounts {
+    type      = "bind"
+    source    = abspath("${path.module}/grafana/provisioning/dashboards.yml")
+    target    = "/etc/grafana/provisioning/dashboards/dashboards.yml"
+    read_only = true
+  }
+
+  mounts {
+    type      = "bind"
+    source    = abspath("${path.module}/grafana/dashboards")
+    target    = "/var/lib/grafana/dashboards"
+    read_only = true
   }
 
 }
 
 
 resource "local_file" "grafana_datasource" {
-  filename = abspath("${path.root}/generated/datasource.yml")
+  filename             = abspath("${path.root}/generated/datasource.yml")
   file_permission      = "0644"
   directory_permission = "0755"
-  content = <<-EOF
+  content              = <<-EOF
 apiVersion: 1
 
 datasources:
@@ -142,10 +172,10 @@ EOF
 ############### LOKI #################
 
 resource "local_file" "loki_config" {
-  filename = abspath("${path.root}/generated/loki-config.yml")
+  filename             = abspath("${path.root}/generated/loki-config.yml")
   file_permission      = "0644"
   directory_permission = "0755"
-  content = file("${path.module}/loki.yml")
+  content              = file("${path.module}/loki.yml")
 }
 
 resource "docker_image" "loki" {
@@ -181,7 +211,7 @@ resource "docker_container" "loki" {
 ################### ALLOY ###################
 
 resource "local_file" "alloy_config" {
-  filename = abspath("${path.root}/generated/alloy-config.alloy")
+  filename             = abspath("${path.root}/generated/alloy-config.alloy")
   file_permission      = "0644"
   directory_permission = "0755"
   content = templatefile("${path.module}/config.alloy", {
@@ -226,10 +256,10 @@ resource "docker_container" "alloy" {
 ############### ALLOY - LOKI ###############
 
 resource "local_file" "grafana_loki_datasource" {
-  filename = abspath("${path.root}/generated/datasource-loki.yml")
+  filename             = abspath("${path.root}/generated/datasource-loki.yml")
   file_permission      = "0644"
   directory_permission = "0755"
-  content = <<-EOF
+  content              = <<-EOF
 apiVersion: 1
 
 datasources:
@@ -240,4 +270,3 @@ datasources:
     isDefault: false
 EOF
 }
-

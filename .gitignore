@@ -25,3 +25,6 @@ venv/
 
 # OS
 .DS_Store
+
+# Generated Files
+terraform/environments/dev/generated/

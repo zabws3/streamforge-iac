@@ -1,7 +1,7 @@
 resource "docker_image" "minio" {
   name = "pgsty/silo:RELEASE.2026-11-12T00-00-00Z"
 }
-  
+
 resource "docker_volume" "storage" {
   name = "${var.environment}_minio_data"
 }
@@ -9,6 +9,14 @@ resource "docker_volume" "storage" {
 resource "docker_container" "minio" {
   name  = "${var.environment}_minio"
   image = docker_image.minio.image_id
+
+  healthcheck {
+    test         = ["CMD", "/usr/bin/curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/minio/health/ready"]
+    interval     = "15s"
+    timeout      = "5s"
+    retries      = 3
+    start_period = "60s"
+  }
 
   command = ["server", "/data", "--console-address", ":9001"]
 
