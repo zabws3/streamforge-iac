@@ -5,7 +5,7 @@
 TF_DIR := terraform/environments/dev
 TF_VAR_FILE := dev.tfvars
 
-.PHONY: help dev-init dev-validate dev-plan dev-up dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart
+.PHONY: help setup dev-init dev-validate dev-plan dev-up dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart
 
 help:
 	@echo ""
@@ -15,6 +15,7 @@ help:
 	@echo " make dev-validate   Validar configuracion"
 	@echo " make dev-plan       Mostrar plan"
 	@echo " make dev-up         Levantar DEV"
+	@echo " make setup          Preparar infraestructura DEV y buckets MinIO"
 	@echo " make dev-destroy    Destruir DEV"
 	@echo " make dev-output     Mostrar outputs"
 	@echo " make dev-ps        Ver contenedores"
@@ -37,6 +38,8 @@ dev-plan:
 dev-up:
 	terraform -chdir=$(TF_DIR) init
 	terraform -chdir=$(TF_DIR) apply -var-file=$(TF_VAR_FILE)
+
+setup: dev-up
 
 dev-destroy:
 	terraform -chdir=$(TF_DIR) destroy -var-file=$(TF_VAR_FILE)

@@ -65,8 +65,11 @@ module "web" {
     REDIS_HOST = "${var.environment}_redis"
     REDIS_PORT = "6379"
 
-    SESSION_SECRET = var.session_secret
-    COOKIE_SECURE  = "false"
+    SESSION_SECRET   = var.session_secret
+    COOKIE_SECURE    = "false"
+    MINIO_ENDPOINT   = "http://${var.environment}_minio:9000"
+    MINIO_ACCESS_KEY = var.minio_user
+    MINIO_SECRET_KEY = var.minio_password
   }
 
   depends_on = [

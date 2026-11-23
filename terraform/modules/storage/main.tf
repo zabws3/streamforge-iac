@@ -1,5 +1,10 @@
 resource "docker_image" "minio" {
-  name = "pgsty/silo:RELEASE.2026-11-12T00-00-00Z"
+  name = "streamforge-silo:${var.environment}"
+
+  build {
+    context    = abspath(path.module)
+    dockerfile = "Dockerfile"
+  }
 }
 
 resource "docker_volume" "storage" {
@@ -45,5 +50,11 @@ resource "docker_container" "minio" {
   volumes {
     volume_name    = docker_volume.storage.name
     container_path = "/data"
+  }
+
+  volumes {
+    host_path      = abspath("${path.module}/../../../media")
+    container_path = "/media"
+    read_only      = true
   }
 }

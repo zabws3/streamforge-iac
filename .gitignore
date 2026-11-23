@@ -28,3 +28,6 @@ venv/
 
 # Generated Files
 terraform/environments/dev/generated/
+
+#Chunks content
+media/

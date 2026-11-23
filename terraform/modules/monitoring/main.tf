@@ -57,10 +57,6 @@ resource "docker_container" "cadvisor" {
 
   privileged = true
 
-  ports {
-    internal = 8080
-  }
-
   dynamic "networks_advanced" {
     for_each = var.networks
     content {

@@ -15,12 +15,12 @@ variable "database_user" {
 
 variable "database_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
 variable "database_root_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
 variable "minio_user" {
@@ -30,17 +30,17 @@ variable "minio_user" {
 
 variable "minio_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
 variable "grafana_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
 
 variable "session_secret" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
