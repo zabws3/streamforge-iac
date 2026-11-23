@@ -25,12 +25,11 @@ resource "docker_container" "web" {
     for key, value in var.env_vars : "${key}=${value}"
   ]
 
-  networks_advanced {
-    name = var.networks[0]
-  }
-
-  networks_advanced {
-    name = var.networks[1]
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 
   ports {

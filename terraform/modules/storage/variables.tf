@@ -2,8 +2,8 @@ variable "environment" {
   type = string
 }
 
-variable "network" {
-  type = string
+variable "networks" {
+  type = list(string)
 }
 
 variable "root_user" {
@@ -12,7 +12,7 @@ variable "root_user" {
 
 variable "root_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
 variable "api_port" {

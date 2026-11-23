@@ -37,8 +37,11 @@ resource "docker_container" "prometheus" {
     target = "/etc/prometheus/prometheus.yml"
   }
 
-  networks_advanced {
-    name = var.network
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 }
 
@@ -58,8 +61,11 @@ resource "docker_container" "cadvisor" {
     internal = 8080
   }
 
-  networks_advanced {
-    name = var.network
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 
   mounts {
@@ -118,12 +124,11 @@ resource "docker_container" "grafana" {
     internal = 3000
   }
 
-  networks_advanced {
-    name = var.network
-  }
-
-  networks_advanced {
-    name = var.frontend_network
+  dynamic "networks_advanced" {
+    for_each = var.grafana_networks
+    content {
+      name = networks_advanced.value
+    }
   }
 
   mounts {
@@ -203,8 +208,11 @@ resource "docker_container" "loki" {
     container_path = "/loki"
   }
 
-  networks_advanced {
-    name = var.network
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 }
 
@@ -235,8 +243,11 @@ resource "docker_container" "alloy" {
     "/etc/alloy/config.alloy"
   ]
 
-  networks_advanced {
-    name = var.network
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 
   mounts {

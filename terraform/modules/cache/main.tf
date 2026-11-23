@@ -14,8 +14,11 @@ resource "docker_container" "redis" {
     start_period = "10s"
   }
 
-  networks_advanced {
-    name = var.network
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 
 }

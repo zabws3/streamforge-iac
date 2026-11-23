@@ -25,8 +25,11 @@ resource "docker_container" "database" {
     "MYSQL_ROOT_PASSWORD=${var.root_password}"
   ]
 
-  networks_advanced {
-    name = var.network
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 
   volumes {

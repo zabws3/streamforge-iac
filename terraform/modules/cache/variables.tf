@@ -2,8 +2,8 @@ variable "environment" {
   type = string
 }
 
-variable "network" {
-  type = string
+variable "networks" {
+  type = list(string)
 }
 
 variable "image" {

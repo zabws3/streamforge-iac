@@ -14,16 +14,16 @@ variable "database_user" {
 
 variable "database_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
 variable "root_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
-variable "network" {
-  type = string
+variable "networks" {
+  type = list(string)
 }
 
 variable "volume_name" {

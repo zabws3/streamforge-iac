@@ -35,8 +35,11 @@ resource "docker_container" "minio" {
     internal = 9001
   }
 
-  networks_advanced {
-    name = var.network
+  dynamic "networks_advanced" {
+    for_each = var.networks
+    content {
+      name = networks_advanced.value
+    }
   }
 
   volumes {

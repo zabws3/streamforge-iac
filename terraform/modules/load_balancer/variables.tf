@@ -6,8 +6,8 @@ variable "web_containers" {
   type = list(string)
 }
 
-variable "network" {
-  type = string
+variable "networks" {
+  type = list(string)
 }
 
 variable "image" {
@@ -16,7 +16,6 @@ variable "image" {
 }
 
 variable "external_port" {
-  type = number
+  type    = number
   default = 8080
 }
-

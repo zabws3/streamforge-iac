@@ -2,12 +2,12 @@ variable "environment" {
   type = string
 }
 
-variable "network" {
-  type = string
+variable "networks" {
+  type = list(string)
 }
 
-variable "frontend_network" {
-  type = string
+variable "grafana_networks" {
+  type = list(string)
 }
 
 variable "web_containers" {
@@ -31,7 +31,7 @@ variable "grafana_port" {
 
 variable "grafana_admin_password" {
   type      = string
-  sensitive  = true
+  sensitive = true
 }
 
 

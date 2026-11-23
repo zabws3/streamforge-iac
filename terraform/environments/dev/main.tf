@@ -7,12 +7,12 @@ module "database" {
   source = "../../modules/database"
 
   environment       = var.environment
-  database_name    = var.database_name
-  database_user    = var.database_user
+  database_name     = var.database_name
+  database_user     = var.database_user
   database_password = var.database_password
-  root_password    = var.database_root_password
-  network          = "${var.environment}_backend"
-  volume_name      = "${var.environment}_mysql_data"
+  root_password     = var.database_root_password
+  networks          = ["${var.environment}_backend"]
+  volume_name       = "${var.environment}_mysql_data"
 
   depends_on = [module.network]
 }
@@ -21,7 +21,7 @@ module "database" {
 module "cache" {
   source      = "../../modules/cache"
   environment = var.environment
-  network     = "${var.environment}_backend"
+  networks    = ["${var.environment}_backend"]
 
   depends_on = [module.network]
 }
@@ -29,12 +29,15 @@ module "cache" {
 module "storage" {
   source = "../../modules/storage"
 
-  environment  = var.environment
-  network     = "${var.environment}_backend"
-  root_user  = var.minio_user
+  environment = var.environment
+  networks = [
+    "${var.environment}_frontend",
+    "${var.environment}_backend"
+  ]
+  root_user     = var.minio_user
   root_password = var.minio_password
-  api_port    = 9000
-  console_port = 9001
+  api_port      = 9000
+  console_port  = 9001
 
   depends_on = [module.network]
 }
@@ -43,8 +46,8 @@ module "web" {
   source = "../../modules/web"
 
   environment   = var.environment
-  replicas     = 2
-  image       = "streamforge-dev"
+  replicas      = 2
+  image         = "streamforge-dev"
   internal_port = 3000
 
   networks = [
@@ -54,8 +57,8 @@ module "web" {
 
   env_vars = {
     MYSQL_HOST     = "${var.environment}_database"
-    MYSQL_PORT    = "3306"
-    MYSQL_USER    = var.database_user
+    MYSQL_PORT     = "3306"
+    MYSQL_USER     = var.database_user
     MYSQL_PASSWORD = var.database_password
     MYSQL_DATABASE = var.database_name
 
@@ -63,7 +66,7 @@ module "web" {
     REDIS_PORT = "6379"
 
     SESSION_SECRET = var.session_secret
-    COOKIE_SECURE = "false"
+    COOKIE_SECURE  = "false"
   }
 
   depends_on = [
@@ -84,7 +87,7 @@ module "load_balancer" {
     "${var.environment}_web_2"
   ]
 
-  network       = "${var.environment}_frontend"
+  networks      = ["${var.environment}_frontend"]
   external_port = 8081
 
   depends_on = [module.web]
@@ -93,9 +96,12 @@ module "load_balancer" {
 module "monitoring" {
   source = "../../modules/monitoring"
 
-  environment      = var.environment
-  network          = "${var.environment}_monitoring"
-  frontend_network = "${var.environment}_frontend"
+  environment = var.environment
+  networks    = ["${var.environment}_monitoring"]
+  grafana_networks = [
+    "${var.environment}_monitoring",
+    "${var.environment}_frontend"
+  ]
 
   web_containers = [
     "${var.environment}_web_1",
