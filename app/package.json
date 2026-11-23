@@ -11,6 +11,7 @@
     "connect-redis": "^10.0.0",
     "express": "^5.1.0",
     "express-session": "^1.19.0",
+    "minio": "^8.0.5",
     "mysql2": "^3.24.5",
     "redis": "^6.3.0"
   }
