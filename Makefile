@@ -1,3 +1,4 @@
+
 # ==========================================
 # StreamForge IaC - Makefile
 # ==========================================
@@ -5,7 +6,7 @@
 TF_DIR := terraform/environments/dev
 TF_VAR_FILE := dev.tfvars
 
-.PHONY: help setup dev-init dev-validate dev-plan dev-up dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart
+.PHONY: help setup dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart
 
 help:
 	@echo ""
@@ -15,10 +16,11 @@ help:
 	@echo " make dev-validate   Validar configuracion"
 	@echo " make dev-plan       Mostrar plan"
 	@echo " make dev-up         Levantar DEV"
+	@echo " make dev-deploy    Plan y aplicar cambios DEV"
 	@echo " make setup          Preparar infraestructura DEV y buckets MinIO"
 	@echo " make dev-destroy    Destruir DEV"
 	@echo " make dev-output     Mostrar outputs"
-	@echo " make dev-ps        Ver contenedores"
+	@echo " make dev-ps         Ver contenedores"
 	@echo " make dev-logs      Logs de los servicios"
 	@echo " make web-logs      Logs Web 1"
 	@echo " make lb-logs       Logs Load Balancer"
@@ -38,6 +40,11 @@ dev-plan:
 dev-up:
 	terraform -chdir=$(TF_DIR) init
 	terraform -chdir=$(TF_DIR) apply -var-file=$(TF_VAR_FILE)
+
+dev-deploy:
+	terraform -chdir=$(TF_DIR) init
+	terraform -chdir=$(TF_DIR) plan -var-file=$(TF_VAR_FILE) -out=tfplan
+	terraform -chdir=$(TF_DIR) apply tfplan
 
 setup: dev-up
 

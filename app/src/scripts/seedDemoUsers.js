@@ -32,11 +32,17 @@ async function seedDemoUsers() {
     );
 
     if (columns.length === 0) {
-        await db.query(
-            `ALTER TABLE users
-             ADD COLUMN role ENUM('user', 'admin')
-             NOT NULL DEFAULT 'user'`
-        );
+        try {
+            await db.query(
+                `ALTER TABLE users
+                 ADD COLUMN role ENUM('user', 'admin')
+                 NOT NULL DEFAULT 'user'`
+            );
+        } catch (error) {
+            if (error.code !== "ER_DUP_FIELDNAME") {
+                throw error;
+            }
+        }
     }
 
     for (const account of accounts) {
@@ -55,17 +61,38 @@ async function seedDemoUsers() {
 
         const passwordHash = await bcrypt.hash(account.password, 12);
 
-        await db.query(
-            `INSERT INTO users
-                (username, email, password_hash, role)
-             VALUES (?, ?, ?, ?)`,
-            [
-                account.username,
-                account.email,
-                passwordHash,
-                account.role
-            ]
-        );
+        try {
+            await db.query(
+                `INSERT INTO users
+                    (username, email, password_hash, role)
+                 VALUES (?, ?, ?, ?)`,
+                [
+                    account.username,
+                    account.email,
+                    passwordHash,
+                    account.role
+                ]
+            );
+        } catch (error) {
+            if (error.code !== "ER_DUP_ENTRY") {
+                throw error;
+            }
+
+            const [createdByAnotherInstance] = await db.query(
+                `SELECT user_id FROM users
+                 WHERE email = ? AND username = ?`,
+                [account.email, account.username]
+            );
+
+            if (createdByAnotherInstance.length === 0) {
+                throw error;
+            }
+
+            console.log(
+                `Cuenta de demostración ya existente: ${account.email}`
+            );
+            continue;
+        }
 
         console.log(`Cuenta de demostración creada: ${account.email}`);
     }
