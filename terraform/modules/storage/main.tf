@@ -43,7 +43,8 @@ resource "docker_container" "minio" {
   dynamic "networks_advanced" {
     for_each = var.networks
     content {
-      name = networks_advanced.value
+      name    = networks_advanced.value
+      aliases = ["${var.environment}-minio"]
     }
   }
 

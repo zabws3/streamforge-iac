@@ -17,7 +17,28 @@ async function connectRedis() {
     }
 }
 
+async function invalidateVideoCache() {
+    if (!process.env.REDIS_HOST) return;
+
+    try {
+        await connectRedis();
+
+        for await (const batch of client.scanIterator({
+            MATCH: "videos:*",
+            COUNT: 100
+        })) {
+            const keys = Array.isArray(batch) ? batch : [batch];
+            if (keys.length > 0) {
+                await client.del(keys);
+            }
+        }
+    } catch (error) {
+        console.error("Could not invalidate video cache:", error);
+    }
+}
+
 module.exports = {
     client,
-    connectRedis
+    connectRedis,
+    invalidateVideoCache
 };

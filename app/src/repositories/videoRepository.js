@@ -19,6 +19,18 @@ async function getVideoById(id) {
     return rows[0] || null;
 }
 
+async function getVideoByMpdPath(mpdPath) {
+    const [rows] = await db.query(
+        `SELECT video_id AS id
+         FROM videos
+         WHERE mpd_path = ?
+         LIMIT 1`,
+        [mpdPath]
+    );
+
+    return rows[0] || null;
+}
+
 async function getAllVideos() {
     const [rows] = await db.query(
         `SELECT
@@ -97,21 +109,59 @@ async function getVideosByCategory(categoryId) {
 }
 
 async function createVideo(video) {
-    const [result] = await db.query(
-        `INSERT INTO videos
-            (title, description, duration_seconds, thumbnail_url, mpd_path, category_id)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-            video.title,
-            video.description,
-            video.durationSeconds,
-            video.thumbnailUrl,
-            video.mpdPath,
-            video.categoryId
-        ]
-    );
+    const connection = await db.getConnection();
+    let lockAcquired = false;
 
-    return result.insertId;
+    try {
+        const [lockRows] = await connection.query(
+            "SELECT GET_LOCK(?, 10) AS acquired",
+            ["streamforge:video-catalog"]
+        );
+
+        if (Number(lockRows[0].acquired) !== 1) {
+            const error = new Error("Timed out waiting to register the video.");
+            error.code = "ER_LOCK_WAIT_TIMEOUT";
+            throw error;
+        }
+        lockAcquired = true;
+
+        const [existing] = await connection.query(
+            "SELECT video_id FROM videos WHERE mpd_path = ? LIMIT 1",
+            [video.mpdPath]
+        );
+
+        if (existing.length > 0) {
+            return null;
+        }
+
+        const [result] = await connection.query(
+            `INSERT INTO videos
+                (title, description, duration_seconds, thumbnail_url, mpd_path, category_id)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+                video.title,
+                video.description,
+                video.durationSeconds,
+                video.thumbnailUrl,
+                video.mpdPath,
+                video.categoryId
+            ]
+        );
+
+        return result.insertId;
+    } finally {
+        if (lockAcquired) {
+            try {
+                await connection.query(
+                    "SELECT RELEASE_LOCK(?)",
+                    ["streamforge:video-catalog"]
+                );
+            } catch (error) {
+                console.error("Could not release video catalog lock:", error);
+            }
+        }
+        connection.release();
+    }
 }
 
 async function updateVideo(id, video) {
@@ -171,6 +221,7 @@ async function countVideosByCategory(categoryId) {
 
 module.exports = {
     getVideoById,
+    getVideoByMpdPath,
     getAllVideos,
     searchVideos,
     getVideosByCategory,

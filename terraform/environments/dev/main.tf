@@ -68,7 +68,7 @@ module "web" {
     SESSION_SECRET   = var.session_secret
     COOKIE_SECURE    = "false"
     SEED_DEMO_USERS  = "true"
-    MINIO_ENDPOINT   = "http://${var.environment}_minio:9000"
+    MINIO_ENDPOINT   = "http://${var.environment}-minio:9000"
     MINIO_ACCESS_KEY = var.minio_user
     MINIO_SECRET_KEY = var.minio_password
   }
@@ -102,6 +102,11 @@ module "monitoring" {
 
   environment = var.environment
   networks    = ["${var.environment}_monitoring"]
+  probe_networks = [
+    "${var.environment}_frontend",
+    "${var.environment}_backend"
+  ]
+  telegram_egress_network = "${var.environment}_frontend"
   grafana_networks = [
     "${var.environment}_monitoring",
     "${var.environment}_frontend"
@@ -114,6 +119,15 @@ module "monitoring" {
 
   grafana_port           = 3001
   grafana_admin_password = var.grafana_password
+  telegram_bot_token     = var.telegram_bot_token
+  telegram_chat_id       = var.telegram_chat_id
+
+  cpu_warning_threshold     = var.alert_cpu_warning_threshold
+  cpu_critical_threshold    = var.alert_cpu_critical_threshold
+  memory_warning_threshold  = var.alert_memory_warning_threshold
+  memory_critical_threshold = var.alert_memory_critical_threshold
+  disk_warning_threshold    = var.alert_disk_warning_threshold
+  disk_critical_threshold   = var.alert_disk_critical_threshold
 
   depends_on = [module.network]
 }

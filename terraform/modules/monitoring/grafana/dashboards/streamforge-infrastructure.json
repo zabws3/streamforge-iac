@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Verified Docker host and container telemetry for StreamForge DEV. Streaming analytics are explicitly pending instrumentation.",
+  "description": "Verified cAdvisor metrics and Docker logs for StreamForge DEV.",
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -966,13 +966,299 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "{service_name=\"unknown_service\"} |~ \"(?i)(error|exception|failed|fatal)\"",
+          "expr": "{service_name=\"unknown_service\"} |= \"level=error\"",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Error logs (unclassified service)",
+      "title": "Error-level logs (all collected containers)",
       "type": "logs"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 82
+      },
+      "id": 37,
+      "panels": [],
+      "title": "DASH REQUEST LOGS",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "P8E80F9AEF21F6940"
+      },
+      "description": "Shows method and manifest/chunk path from [DASH] lines emitted by the currently running web replicas. Host, storage source, and structured response details are not present in those deployed logs.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 83
+      },
+      "id": 38,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "P8E80F9AEF21F6940"
+          },
+          "editorMode": "code",
+          "expr": "{service_name=\"unknown_service\"} |= \"[DASH]\" !~ \"caller=\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "DASH requests — manifest and chunk paths",
+      "type": "logs"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 95
+      },
+      "id": 39,
+      "panels": [],
+      "title": "ALERTS AND AVAILABILITY",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Currently firing Prometheus alert rules. Resolved alerts are delivered by Alertmanager to Telegram.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 96
+      },
+      "id": 40,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{alertname}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Active Prometheus alerts",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Current HTTP/TCP probe result for each configured service endpoint. A value of 1 is reachable; 0 is failing.",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 96
+      },
+      "id": 43,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "probe_success{job=\"blackbox\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{service}} — {{container}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Service probe status",
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 106
+      },
+      "id": 44,
+      "panels": [],
+      "title": "HOST RESOURCES AND CAPACITY",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Number of Web replicas whose direct HTTP health probe is currently successful.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          },
+          "unit": "short",
+          "displayName": "Available replicas"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 107
+      },
+      "id": 41,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(probe_success{job=\"blackbox\",service=\"streamforge-web\"})",
+          "instant": true,
+          "legendFormat": "Available Web replicas",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Available Web replicas",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Host root filesystem usage, collected by Node Exporter.",
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 85
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 107
+      },
+      "id": 42,
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "(1 - node_filesystem_avail_bytes{job=\"node_exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{job=\"node_exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}) * 100",
+          "instant": true,
+          "legendFormat": "Host root disk used",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Host disk used",
+      "type": "gauge"
     }
   ],
   "refresh": "15s",

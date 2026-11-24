@@ -1,0 +1,23 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: streamforge-telegram
+  group_by:
+    - alertname
+    - service
+  group_wait: 30s
+  group_interval: 1m
+  repeat_interval: 4h
+
+receivers:
+  - name: streamforge-telegram
+    telegram_configs:
+      - bot_token_file: /run/telegram_bot_token
+        chat_id: __TELEGRAM_CHAT_ID__
+        parse_mode: HTML
+        send_resolved: true
+        message: '{{ template "streamforge.telegram.message" . }}'
+
+templates:
+  - /etc/alertmanager/templates/*.tmpl

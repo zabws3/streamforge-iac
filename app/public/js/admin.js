@@ -3,6 +3,9 @@ const messageElement = document.getElementById("adminMessage");
 const searchInput = document.getElementById("videoSearch");
 const formSection = document.getElementById("videoFormSection");
 const videoForm = document.getElementById("videoForm");
+const minioVideoField = document.getElementById("minioVideoField");
+const minioVideoSelect = document.getElementById("minioVideoSelect");
+const minioVideoStatus = document.getElementById("minioVideoStatus");
 
 const fields = {
     id: document.getElementById("videoId"),
@@ -18,6 +21,7 @@ const thumbnailPreview = document.getElementById("thumbnailPreview");
 
 let videos = [];
 let categories = [];
+let minioVideos = [];
 
 function showMessage(message, isError = false) {
     messageElement.textContent = message;
@@ -187,6 +191,7 @@ async function loadCategories() {
 function resetForm() {
     videoForm.reset();
     fields.id.value = "";
+    minioVideoSelect.value = "";
     thumbnailPreview.removeAttribute("src");
     thumbnailPreview.hidden = true;
     document.getElementById("formTitle").textContent = "Añadir vídeo";
@@ -195,13 +200,16 @@ function resetForm() {
 
 function openNewForm() {
     resetForm();
+    minioVideoField.hidden = false;
     formSection.hidden = false;
     formSection.scrollIntoView({ behavior: "smooth", block: "start" });
     fields.title.focus();
+    loadMinioVideos();
 }
 
 function openEditForm(video) {
     resetForm();
+    minioVideoField.hidden = true;
 
     fields.id.value = video.id;
     fields.title.value = video.title || "";
@@ -217,6 +225,65 @@ function openEditForm(video) {
     updateThumbnailPreview();
     formSection.hidden = false;
     formSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function loadMinioVideos() {
+    minioVideos = [];
+    minioVideoSelect.disabled = true;
+    minioVideoSelect.replaceChildren();
+
+    const loadingOption = document.createElement("option");
+    loadingOption.value = "";
+    loadingOption.textContent = "Consultando MinIO...";
+    minioVideoSelect.appendChild(loadingOption);
+    minioVideoStatus.textContent = "Cargando manifiestos disponibles...";
+
+    try {
+        const result = await apiRequest("/api/admin/minio-videos");
+        minioVideos = result.data || [];
+        minioVideoSelect.replaceChildren();
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = minioVideos.length
+            ? "Selecciona un vídeo almacenado"
+            : "No hay manifiestos disponibles";
+        minioVideoSelect.appendChild(placeholder);
+
+        for (const video of minioVideos) {
+            const option = document.createElement("option");
+            option.value = video.mpdPath;
+            option.textContent = video.registered
+                ? `${video.name} · ${video.mpdPath} (ya está en el catálogo)`
+                : `${video.name} · ${video.mpdPath}`;
+            option.disabled = video.registered;
+            minioVideoSelect.appendChild(option);
+        }
+
+        minioVideoSelect.disabled = !minioVideos.some(
+            video => !video.registered
+        );
+        minioVideoStatus.textContent = minioVideos.length
+            ? "Al seleccionar un vídeo se rellenan su nombre y la ruta MPD. Completa la duración y los demás datos del catálogo."
+            : "No se encontraron archivos manifest.mpd en el bucket de manifiestos.";
+    } catch (error) {
+        minioVideoSelect.replaceChildren();
+        const errorOption = document.createElement("option");
+        errorOption.value = "";
+        errorOption.textContent = "No se pudo consultar MinIO";
+        minioVideoSelect.appendChild(errorOption);
+        minioVideoStatus.textContent = error.message;
+    }
+}
+
+function selectMinioVideo() {
+    const selectedVideo = minioVideos.find(
+        video => video.mpdPath === minioVideoSelect.value
+    );
+    if (!selectedVideo || selectedVideo.registered) return;
+
+    fields.mpdPath.value = selectedVideo.mpdPath;
+    fields.title.value = selectedVideo.name;
 }
 
 function updateThumbnailPreview() {
@@ -311,6 +378,12 @@ document.getElementById("resetFormButton").addEventListener("click", resetForm);
 videoForm.addEventListener("submit", saveVideo);
 searchInput.addEventListener("input", renderVideos);
 fields.thumbnailUrl.addEventListener("input", updateThumbnailPreview);
+minioVideoSelect.addEventListener("change", selectMinioVideo);
+fields.mpdPath.addEventListener("input", () => {
+    if (fields.mpdPath.value !== minioVideoSelect.value) {
+        minioVideoSelect.value = "";
+    }
+});
 
 async function initializeAdmin() {
     try {

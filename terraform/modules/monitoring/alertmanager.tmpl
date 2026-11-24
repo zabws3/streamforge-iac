@@ -1,0 +1,28 @@
+{{ define "streamforge.telegram.message" -}}
+{{ if eq .Status "firing" -}}
+🚨 <b>STREAMFORGE ALERT</b>
+{{ else -}}
+✅ <b>STREAMFORGE RECOVERED</b>
+{{ end -}}
+{{ range .Alerts -}}
+{{ if eq .Labels.severity "critical" -}}
+🔴 <b>CRITICAL</b>
+{{ else -}}
+🟡 <b>WARNING</b>
+{{ end -}}
+ — <b>{{ .Labels.alertname }}</b>
+Servicio: <code>{{ .Labels.service }}</code>
+Estado: {{ if eq .Status "firing" }}DOWN{{ else }}UP{{ end }}
+Host/instancia: <code>{{ .Labels.container }}{{ if .Labels.instance }} ({{ .Labels.instance }}){{ end }}</code>
+Hora: {{ if eq .Status "firing" }}{{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}{{ else }}{{ .EndsAt.Format "2006-01-02 15:04:05 MST" }}{{ end }}
+{{ if eq .Status "resolved" -}}
+Duración: {{ .EndsAt.Sub .StartsAt }}
+{{ end -}}
+{{ if .Annotations.value -}}
+Valor: {{ .Annotations.value }}
+{{ end -}}
+Descripción: {{ .Annotations.description }}
+Acción recomendada: {{ .Annotations.action }}
+
+{{ end -}}
+{{ end }}

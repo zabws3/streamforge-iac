@@ -97,13 +97,23 @@
                         </select>
                     </label>
 
+                    <label id="minioVideoField" class="admin-full-width" hidden>
+                        Vídeo almacenado en MinIO
+                        <select id="minioVideoSelect" name="minioVideo">
+                            <option value="">Cargando vídeos disponibles...</option>
+                        </select>
+                        <small id="minioVideoStatus" role="status" aria-live="polite">
+                            Selecciona un manifiesto almacenado o indica una ruta local.
+                        </small>
+                    </label>
+
                     <label class="admin-full-width">
                         Ruta relativa del manifiesto MPD *
                         <input id="mpdPath" name="mpdPath" type="text" maxlength="500"
                                placeholder="Cortometraje/manifest.mpd" required>
                         <small>
-                            Ruta relativa a MEDIA_PATH; no introduzcas una URL ni
-                            una ruta absoluta del contenedor.
+                            La ruta seleccionada en MinIO se rellenará aquí. También
+                            puedes indicar una ruta local relativa a MEDIA_PATH.
                         </small>
                     </label>
 

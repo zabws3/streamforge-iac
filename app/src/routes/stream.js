@@ -1,12 +1,15 @@
 
 const express = require("express");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { pipeline } = require("stream/promises");
-const Minio = require("minio");
+const {
+    getMinioClient,
+    isMissingMinioObject
+} = require("../services/minioClient");
 
 const router = express.Router();
-let minioClient;
 
 const MEDIA_PATH = path.resolve(
     process.env.MEDIA_PATH || "/var/zabflix/media"
@@ -24,33 +27,33 @@ const MINIO_BUCKETS = {
     ".m4s": "streamforge-chunks"
 };
 
-function getMinioClient() {
-    if (minioClient) return minioClient;
+function logMediaResponse(req, res, requestedPath, bucket) {
+    let logged = false;
 
-    const endpoint = process.env.MINIO_ENDPOINT;
-    const accessKey = process.env.MINIO_ACCESS_KEY;
-    const secretKey = process.env.MINIO_SECRET_KEY;
+    const log = outcome => {
+        if (logged) return;
+        logged = true;
 
-    if (!endpoint || !accessKey || !secretKey) {
-        throw new Error(
-            "MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY must be configured."
-        );
-    }
+        console.log(JSON.stringify({
+            event: "media_stream",
+            outcome,
+            server_instance: os.hostname(),
+            request_host: req.get("host") || null,
+            client_ip: req.get("x-real-ip") || req.socket.remoteAddress || null,
+            method: req.method,
+            object: requestedPath,
+            bucket,
+            storage: res.locals.mediaStorage || "unknown",
+            status: res.statusCode,
+            content_length: Number(res.getHeader("Content-Length")) || 0,
+            range: req.get("range") || null
+        }));
+    };
 
-    const parsedEndpoint = new URL(endpoint);
-    if (!["http:", "https:"].includes(parsedEndpoint.protocol)) {
-        throw new Error("MINIO_ENDPOINT must use http or https.");
-    }
-
-    minioClient = new Minio.Client({
-        endPoint: parsedEndpoint.hostname,
-        port: Number(parsedEndpoint.port) || undefined,
-        useSSL: parsedEndpoint.protocol === "https:",
-        accessKey,
-        secretKey
+    res.once("finish", () => log("complete"));
+    res.once("close", () => {
+        if (!res.writableFinished) log("aborted");
     });
-
-    return minioClient;
 }
 
 function parseByteRange(range, size) {
@@ -78,6 +81,7 @@ async function streamFromMinio(req, res, bucket, requestedPath, extension) {
     try {
         const client = getMinioClient();
         const object = await client.statObject(bucket, requestedPath);
+        res.locals.mediaStorage = "minio";
         const byteRange = req.headers.range
             ? parseByteRange(req.headers.range, object.size)
             : null;
@@ -120,10 +124,8 @@ async function streamFromMinio(req, res, bucket, requestedPath, extension) {
 
         await pipeline(mediaStream, res);
     } catch (error) {
-        if (error.code === "NoSuchKey" || error.code === "NotFound") {
-            return res.status(404).json({
-                error: "Archivo multimedia no encontrado"
-            });
+        if (isMissingMinioObject(error)) {
+            return streamFromLocal(req, res, requestedPath, extension);
         }
 
         if (res.destroyed) return;
@@ -136,6 +138,46 @@ async function streamFromMinio(req, res, bucket, requestedPath, extension) {
             if (!res.headersSent) res.status(502).end();
         }
     }
+}
+
+function streamFromLocal(req, res, requestedPath, extension) {
+    const filePath = path.resolve(MEDIA_PATH, requestedPath);
+
+    if (
+        filePath !== MEDIA_PATH &&
+        !filePath.startsWith(MEDIA_PATH + path.sep)
+    ) {
+        return res.status(403).json({ error: "Acceso denegado" });
+    }
+
+    res.locals.mediaStorage = "local";
+
+    fs.stat(filePath, (error, stats) => {
+        if (error || !stats.isFile()) {
+            return res.status(404).json({
+                error: "Archivo multimedia no encontrado"
+            });
+        }
+
+        res.setHeader(
+            "Content-Type",
+            MIME_TYPES[extension] || "application/octet-stream"
+        );
+        res.setHeader("Cache-Control", "private, no-store");
+        res.setHeader("Accept-Ranges", "bytes");
+        res.sendFile(filePath, sendError => {
+            if (sendError) {
+                console.error(
+                    `[DASH] Error sirviendo ${requestedPath}:`,
+                    sendError.message
+                );
+
+                if (!res.headersSent) {
+                    res.status(sendError.statusCode || 500).end();
+                }
+            }
+        });
+    });
 }
 
 router.get("/*filepath", async (req, res) => {
@@ -170,47 +212,13 @@ router.get("/*filepath", async (req, res) => {
 
     const extension = path.extname(requestedPath).toLowerCase();
     const bucket = MINIO_BUCKETS[extension];
+    logMediaResponse(req, res, requestedPath, bucket || null);
 
     if (bucket) {
         return streamFromMinio(req, res, bucket, requestedPath, extension);
     }
 
-    fs.stat(filePath, (error, stats) => {
-        if (error || !stats.isFile()) {
-            console.warn(`[DASH] Archivo no encontrado: ${filePath}`);
-
-            return res.status(404).json({
-                error: "Archivo multimedia no encontrado"
-            });
-        }
-
-        res.setHeader(
-            "Content-Type",
-            MIME_TYPES[extension] || "application/octet-stream"
-        );
-
-        res.setHeader("Cache-Control", "private, no-store");
-        res.setHeader("Accept-Ranges", "bytes");
-
-        console.log(
-            `[DASH] Sirviendo ${requestedPath} (${stats.size} bytes)`
-        );
-
-        res.sendFile(filePath, sendError => {
-            if (sendError) {
-                console.error(
-                    `[DASH] Error sirviendo ${requestedPath}:`,
-                    sendError.message
-                );
-
-                if (!res.headersSent) {
-                    res.status(sendError.statusCode || 500).end();
-                }
-            } else {
-                console.log(`[DASH] Envío completado: ${requestedPath}`);
-            }
-        });
-    });
+    return streamFromLocal(req, res, requestedPath, extension);
 });
 
 module.exports = router;
