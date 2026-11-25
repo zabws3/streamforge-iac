@@ -1,6 +1,4 @@
 locals {
-  docker_api_proxy_name = "${var.environment}_docker_api_proxy"
-
   blackbox_probes = concat(
     [
       for container in var.web_containers : {
@@ -48,25 +46,10 @@ resource "local_file" "prometheus_config" {
   file_permission      = "0644"
   directory_permission = "0755"
   content = templatefile("${path.module}/prometheus.yml.tftpl", {
-    environment = var.environment
-    probes      = local.blackbox_probes
-  })
-}
-
-resource "local_file" "alert_rules" {
-  filename             = abspath("${path.root}/generated/alert.rules.yml")
-  file_permission      = "0644"
-  directory_permission = "0755"
-  content = templatefile("${path.module}/alert.rules.yml.tftpl", {
-    environment               = var.environment
-    web_containers            = var.web_containers
-    cache_enabled             = var.cache_enabled
-    cpu_warning_threshold     = var.cpu_warning_threshold
-    cpu_critical_threshold    = var.cpu_critical_threshold
-    memory_warning_threshold  = var.memory_warning_threshold
-    memory_critical_threshold = var.memory_critical_threshold
-    disk_warning_threshold    = var.disk_warning_threshold
-    disk_critical_threshold   = var.disk_critical_threshold
+    environment         = var.environment
+    probes              = local.blackbox_probes
+    alerts_enabled      = var.alert_rules_path != ""
+    alertmanager_target = var.alertmanager_target
   })
 }
 
@@ -115,11 +98,14 @@ resource "docker_container" "prometheus" {
     read_only = true
   }
 
-  mounts {
-    type      = "bind"
-    source    = local_file.alert_rules.filename
-    target    = "/etc/prometheus/alert.rules.yml"
-    read_only = true
+  dynamic "mounts" {
+    for_each = var.alert_rules_path != "" ? [var.alert_rules_path] : []
+    content {
+      type      = "bind"
+      source    = mounts.value
+      target    = "/etc/prometheus/alert.rules.yml"
+      read_only = true
+    }
   }
 
   volumes {
@@ -128,7 +114,7 @@ resource "docker_container" "prometheus" {
   }
 
   dynamic "networks_advanced" {
-    for_each = var.networks
+    for_each = distinct(concat(var.networks, [var.host_access_network]))
     content {
       name = networks_advanced.value
     }
@@ -141,7 +127,6 @@ resource "docker_container" "prometheus" {
   }
 
   depends_on = [
-    docker_container.alertmanager,
     docker_container.blackbox_exporter,
     docker_container.node_exporter
   ]
@@ -205,59 +190,6 @@ resource "docker_container" "cadvisor" {
 ################### BLACKBOX EXPORTER ###################
 resource "docker_image" "blackbox_exporter" {
   name = "prom/blackbox-exporter:latest"
-}
-
-resource "docker_network" "docker_api" {
-  name     = "${var.environment}_docker_api"
-  internal = true
-}
-
-resource "docker_image" "docker_api_proxy" {
-  name = var.docker_api_proxy_image
-}
-
-resource "docker_container" "docker_api_proxy" {
-  name  = local.docker_api_proxy_name
-  image = docker_image.docker_api_proxy.image_id
-
-  restart       = "unless-stopped"
-  read_only     = true
-  security_opts = ["no-new-privileges:true"]
-  tmpfs = {
-    "/run" = "rw,noexec,nosuid,size=1m"
-  }
-  env = [
-    "CONTAINERS=1",
-    "NETWORKS=1",
-    "ALLOW_LOGS=1",
-    "EVENTS=0",
-    "POST=0",
-    "LOG_LEVEL=warning",
-    "TIMEOUT_CLIENT=1440",
-    "TIMEOUT_SERVER=1440"
-  ]
-
-  # Alloy uses this private proxy instead of receiving direct Docker access.
-  capabilities {
-    drop = ["ALL"]
-  }
-
-  volumes {
-    host_path      = "/var/run/docker.sock"
-    container_path = "/var/run/docker.sock"
-    read_only      = true
-  }
-
-  networks_advanced {
-    name = docker_network.docker_api.name
-  }
-
-  healthcheck {
-    test     = ["CMD", "wget", "-qO-", "http://127.0.0.1:2375/_ping"]
-    interval = "10s"
-    timeout  = "3s"
-    retries  = 3
-  }
 }
 
 resource "docker_container" "blackbox_exporter" {
@@ -327,14 +259,6 @@ resource "docker_container" "node_exporter" {
 }
 
 ################### ALERTMANAGER ###################
-resource "docker_image" "alertmanager" {
-  name = "prom/alertmanager:latest"
-}
-
-resource "docker_volume" "alertmanager_data" {
-  name = "${var.environment}_alertmanager_data"
-}
-
 resource "docker_volume" "prometheus_data" {
   name = "${var.environment}_prometheus_data"
 }
@@ -346,69 +270,6 @@ resource "docker_volume" "grafana_data" {
 resource "docker_volume" "alloy_data" {
   name = "${var.environment}_alloy_data"
 }
-
-resource "docker_container" "alertmanager" {
-  name          = "${var.environment}_alertmanager"
-  image         = docker_image.alertmanager.image_id
-  read_only     = true
-  security_opts = ["no-new-privileges:true"]
-
-  capabilities {
-    drop = ["ALL"]
-  }
-
-  entrypoint = ["/bin/sh", "/etc/alertmanager/entrypoint.sh"]
-  restart    = "unless-stopped"
-  tmpfs = {
-    "/run" = "rw,noexec,nosuid,size=1m"
-  }
-  env = [
-    "TELEGRAM_BOT_TOKEN=${var.telegram_bot_token}",
-    "TELEGRAM_CHAT_ID=${var.telegram_chat_id}"
-  ]
-
-  healthcheck {
-    test         = ["CMD-SHELL", "wget -qO- http://127.0.0.1:9093/-/healthy >/dev/null 2>&1"]
-    interval     = "15s"
-    timeout      = "5s"
-    retries      = 3
-    start_period = "30s"
-  }
-
-  mounts {
-    type      = "bind"
-    source    = abspath("${path.module}/alertmanager.yml.template")
-    target    = "/etc/alertmanager/alertmanager.yml.template"
-    read_only = true
-  }
-
-  mounts {
-    type      = "bind"
-    source    = abspath("${path.module}/alertmanager-entrypoint.sh")
-    target    = "/etc/alertmanager/entrypoint.sh"
-    read_only = true
-  }
-
-  mounts {
-    type      = "bind"
-    source    = abspath("${path.module}/alertmanager.tmpl")
-    target    = "/etc/alertmanager/templates/streamforge.tmpl"
-    read_only = true
-  }
-
-  volumes {
-    volume_name    = docker_volume.alertmanager_data.name
-    container_path = "/alertmanager"
-  }
-
-  dynamic "networks_advanced" {
-    for_each = distinct(concat(var.networks, [var.telegram_egress_network]))
-    content {
-      name = networks_advanced.value
-    }
-  }
-}
-
 
 ################### GRAFANA ###################
 resource "docker_image" "grafana" {
@@ -449,7 +310,7 @@ resource "docker_container" "grafana" {
   }
 
   dynamic "networks_advanced" {
-    for_each = var.grafana_networks
+    for_each = distinct(concat(var.grafana_networks, [var.host_access_network]))
     content {
       name = networks_advanced.value
     }
@@ -561,7 +422,7 @@ resource "local_file" "alloy_config" {
   directory_permission = "0755"
   content = templatefile("${path.module}/config.alloy", {
     environment = var.environment
-    docker_host = "tcp://${local.docker_api_proxy_name}:2375"
+    docker_host = "unix:///var/run/docker.sock"
   })
 }
 
@@ -576,6 +437,7 @@ resource "docker_container" "alloy" {
   user          = "alloy"
   read_only     = true
   security_opts = ["no-new-privileges:true"]
+  group_add     = [tostring(var.docker_socket_gid)]
 
   capabilities {
     drop = ["ALL"]
@@ -593,8 +455,14 @@ resource "docker_container" "alloy" {
     container_path = "/var/lib/alloy/data"
   }
 
+  volumes {
+    host_path      = "/var/run/docker.sock"
+    container_path = "/var/run/docker.sock"
+    read_only      = true
+  }
+
   dynamic "networks_advanced" {
-    for_each = distinct(concat(var.networks, [docker_network.docker_api.name]))
+    for_each = var.networks
     content {
       name = networks_advanced.value
     }
@@ -607,7 +475,7 @@ resource "docker_container" "alloy" {
     read_only = true
   }
 
-  depends_on = [docker_container.docker_api_proxy, docker_container.loki]
+  depends_on = [docker_container.loki]
 }
 
 

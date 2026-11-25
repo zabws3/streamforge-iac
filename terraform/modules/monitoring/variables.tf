@@ -10,6 +10,10 @@ variable "grafana_networks" {
   type = list(string)
 }
 
+variable "host_access_network" {
+  type = string
+}
+
 variable "web_containers" {
   type = list(string)
 }
@@ -23,78 +27,16 @@ variable "probe_networks" {
   default = []
 }
 
-variable "telegram_egress_network" {
-  type = string
+variable "alert_rules_path" {
+  description = "Optional path to the alert rules file managed by the alerts module."
+  type        = string
+  default     = ""
 }
 
-variable "telegram_bot_token" {
-  type      = string
-  sensitive = true
-}
-
-variable "telegram_chat_id" {
-  type      = string
-  sensitive = true
-}
-
-variable "cpu_warning_threshold" {
-  type    = number
-  default = 80
-
-  validation {
-    condition     = var.cpu_warning_threshold > 0 && var.cpu_warning_threshold <= 100
-    error_message = "CPU warning threshold must be greater than 0 and at most 100."
-  }
-}
-
-variable "cpu_critical_threshold" {
-  type    = number
-  default = 95
-
-  validation {
-    condition     = var.cpu_critical_threshold > 0 && var.cpu_critical_threshold <= 100
-    error_message = "CPU critical threshold must be greater than 0 and at most 100."
-  }
-}
-
-variable "memory_warning_threshold" {
-  type    = number
-  default = 85
-
-  validation {
-    condition     = var.memory_warning_threshold > 0 && var.memory_warning_threshold <= 100
-    error_message = "Memory warning threshold must be greater than 0 and at most 100."
-  }
-}
-
-variable "memory_critical_threshold" {
-  type    = number
-  default = 95
-
-  validation {
-    condition     = var.memory_critical_threshold > 0 && var.memory_critical_threshold <= 100
-    error_message = "Memory critical threshold must be greater than 0 and at most 100."
-  }
-}
-
-variable "disk_warning_threshold" {
-  type    = number
-  default = 85
-
-  validation {
-    condition     = var.disk_warning_threshold > 0 && var.disk_warning_threshold <= 100
-    error_message = "Disk warning threshold must be greater than 0 and at most 100."
-  }
-}
-
-variable "disk_critical_threshold" {
-  type    = number
-  default = 95
-
-  validation {
-    condition     = var.disk_critical_threshold > 0 && var.disk_critical_threshold <= 100
-    error_message = "Disk critical threshold must be greater than 0 and at most 100."
-  }
+variable "alertmanager_target" {
+  description = "Optional Alertmanager host and port used by Prometheus."
+  type        = string
+  default     = ""
 }
 
 variable "image" {
@@ -134,7 +76,8 @@ variable "alloy_image" {
   default = "grafana/alloy:latest"
 }
 
-variable "docker_api_proxy_image" {
-  type    = string
-  default = "lscr.io/linuxserver/socket-proxy:3.4.8-r0-ls107"
+variable "docker_socket_gid" {
+  description = "Host group ID that owns /var/run/docker.sock"
+  type        = number
+  default     = 126
 }

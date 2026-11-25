@@ -1,3 +1,23 @@
+moved {
+  from = module.monitoring.local_file.alert_rules
+  to   = module.alerts.local_file.alert_rules
+}
+
+moved {
+  from = module.monitoring.docker_image.alertmanager
+  to   = module.alerts.docker_image.alertmanager
+}
+
+moved {
+  from = module.monitoring.docker_volume.alertmanager_data
+  to   = module.alerts.docker_volume.alertmanager_data
+}
+
+moved {
+  from = module.monitoring.docker_container.alertmanager
+  to   = module.alerts.docker_container.alertmanager
+}
+
 module "network" {
   source      = "../../modules/network"
   environment = var.environment
@@ -28,8 +48,11 @@ module "cache" {
 module "storage" {
   source = "../../modules/storage"
 
-  environment   = var.environment
-  networks      = ["${var.environment}_backend"]
+  environment = var.environment
+  networks = [
+    "${var.environment}_backend",
+    "${var.environment}_host_storage"
+  ]
   root_user     = var.minio_user
   root_password = var.minio_password
   api_port      = 9100
@@ -93,6 +116,30 @@ module "load_balancer" {
   depends_on = [module.web]
 }
 
+module "alerts" {
+  source = "../../modules/alerts"
+
+  environment             = var.environment
+  monitoring_network      = "${var.environment}_monitoring"
+  telegram_egress_network = "${var.environment}_frontend"
+  web_containers = [
+    "${var.environment}_web_1",
+    "${var.environment}_web_2",
+    "${var.environment}_web_3"
+  ]
+  cache_enabled             = true
+  telegram_bot_token        = var.telegram_bot_token
+  telegram_chat_id          = var.telegram_chat_id
+  cpu_warning_threshold     = var.alert_cpu_warning_threshold
+  cpu_critical_threshold    = var.alert_cpu_critical_threshold
+  memory_warning_threshold  = var.alert_memory_warning_threshold
+  memory_critical_threshold = var.alert_memory_critical_threshold
+  disk_warning_threshold    = var.alert_disk_warning_threshold
+  disk_critical_threshold   = var.alert_disk_critical_threshold
+
+  depends_on = [module.network]
+}
+
 module "monitoring" {
   source = "../../modules/monitoring"
 
@@ -102,8 +149,10 @@ module "monitoring" {
     "${var.environment}_frontend",
     "${var.environment}_backend"
   ]
-  telegram_egress_network = "${var.environment}_frontend"
-  grafana_networks        = ["${var.environment}_monitoring"]
+  grafana_networks    = ["${var.environment}_monitoring"]
+  host_access_network = "${var.environment}_host_monitoring"
+  alert_rules_path    = module.alerts.alert_rules_path
+  alertmanager_target = module.alerts.alertmanager_target
 
   web_containers = [
     "${var.environment}_web_1",
@@ -115,15 +164,6 @@ module "monitoring" {
   grafana_port           = 3002
   prometheus_port        = 9091
   grafana_admin_password = var.grafana_password
-  telegram_bot_token     = var.telegram_bot_token
-  telegram_chat_id       = var.telegram_chat_id
-
-  cpu_warning_threshold     = var.alert_cpu_warning_threshold
-  cpu_critical_threshold    = var.alert_cpu_critical_threshold
-  memory_warning_threshold  = var.alert_memory_warning_threshold
-  memory_critical_threshold = var.alert_memory_critical_threshold
-  disk_warning_threshold    = var.alert_disk_warning_threshold
-  disk_critical_threshold   = var.alert_disk_critical_threshold
 
   depends_on = [module.network]
 }

@@ -1,4 +1,5 @@
 #!/bin/sh
+# Runs Alertmanager with runtime-only Telegram credentials.
 set -eu
 
 : "${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}"

@@ -1,3 +1,4 @@
+ # PRO-only Alertmanager Telegram routing configuration.
 global:
   resolve_timeout: 5m
 

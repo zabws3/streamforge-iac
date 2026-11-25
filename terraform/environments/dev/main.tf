@@ -1,3 +1,12 @@
+moved {
+  from = module.monitoring.docker_volume.alertmanager_data
+  to   = docker_volume.retained_alertmanager_data
+}
+
+resource "docker_volume" "retained_alertmanager_data" {
+  name = "${var.environment}_alertmanager_data"
+}
+
 module "network" {
   source      = "../../modules/network"
   environment = var.environment
@@ -21,8 +30,11 @@ module "database" {
 module "storage" {
   source = "../../modules/storage"
 
-  environment   = var.environment
-  networks      = ["${var.environment}_backend"]
+  environment = var.environment
+  networks = [
+    "${var.environment}_backend",
+    "${var.environment}_host_storage"
+  ]
   root_user     = var.minio_user
   root_password = var.minio_password
   api_port      = 9000
@@ -86,8 +98,8 @@ module "monitoring" {
     "${var.environment}_frontend",
     "${var.environment}_backend"
   ]
-  telegram_egress_network = "${var.environment}_frontend"
-  grafana_networks        = ["${var.environment}_monitoring"]
+  grafana_networks    = ["${var.environment}_monitoring"]
+  host_access_network = "${var.environment}_host_monitoring"
 
   web_containers = [
     "${var.environment}_web_1",
@@ -98,15 +110,6 @@ module "monitoring" {
 
   grafana_port           = 3001
   grafana_admin_password = var.grafana_password
-  telegram_bot_token     = var.telegram_bot_token
-  telegram_chat_id       = var.telegram_chat_id
-
-  cpu_warning_threshold     = var.alert_cpu_warning_threshold
-  cpu_critical_threshold    = var.alert_cpu_critical_threshold
-  memory_warning_threshold  = var.alert_memory_warning_threshold
-  memory_critical_threshold = var.alert_memory_critical_threshold
-  disk_warning_threshold    = var.alert_disk_warning_threshold
-  disk_critical_threshold   = var.alert_disk_critical_threshold
 
   depends_on = [module.network]
 }
