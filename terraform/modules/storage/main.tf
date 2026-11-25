@@ -33,11 +33,13 @@ resource "docker_container" "minio" {
   ports {
     external = var.api_port
     internal = 9000
+    ip       = "127.0.0.1"
   }
 
   ports {
     external = var.console_port
     internal = 9001
+    ip       = "127.0.0.1"
   }
 
   dynamic "networks_advanced" {

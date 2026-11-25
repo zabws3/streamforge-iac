@@ -1,9 +1,9 @@
 discovery.docker "containers" {
-  host = "unix:///var/run/docker.sock"
+  host = "${docker_host}"
 }
 
 loki.source.docker "containers" {
-  host       = "unix:///var/run/docker.sock"
+  host       = "${docker_host}"
   targets     = discovery.docker.containers.targets
   forward_to = [loki.write.default.receiver]
 }

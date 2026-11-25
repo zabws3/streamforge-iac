@@ -81,6 +81,12 @@ nav a.active,
     gap: 18px;
 }
 
+.instance-indicator {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
 .search {
     display: flex;
     align-items: center;

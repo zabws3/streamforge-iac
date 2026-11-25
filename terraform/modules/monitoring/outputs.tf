@@ -14,6 +14,10 @@ output "alloy_name" {
   value = docker_container.alloy.name
 }
 
+output "docker_api_proxy_name" {
+  value = docker_container.docker_api_proxy.name
+}
+
 output "cadvisor_name" {
   value = docker_container.cadvisor.name
 }

@@ -10,8 +10,10 @@ resource "docker_image" "web" {
 resource "docker_container" "web" {
   count = var.replicas
 
-  name  = "${var.environment}_web_${count.index + 1}"
-  image = docker_image.web.image_id
+  name     = "${var.environment}_web_${count.index + 1}"
+  image    = docker_image.web.image_id
+  hostname = "${var.environment}_web_${count.index + 1}"
+  restart  = "unless-stopped"
 
   healthcheck {
     test         = ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health', { signal: AbortSignal.timeout(4000) }).then(response => process.exit(response.status === 200 ? 0 : 1)).catch(() => process.exit(1))"]
@@ -30,9 +32,5 @@ resource "docker_container" "web" {
     content {
       name = networks_advanced.value
     }
-  }
-
-  ports {
-    internal = var.internal_port
   }
 }

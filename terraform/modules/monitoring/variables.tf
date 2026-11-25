@@ -14,6 +14,10 @@ variable "web_containers" {
   type = list(string)
 }
 
+variable "cache_enabled" {
+  type = bool
+}
+
 variable "probe_networks" {
   type    = list(string)
   default = []
@@ -108,6 +112,11 @@ variable "grafana_port" {
   default = 3000
 }
 
+variable "prometheus_port" {
+  type    = number
+  default = 9090
+}
+
 variable "grafana_admin_password" {
   type      = string
   sensitive = true
@@ -123,4 +132,9 @@ variable "loki_image" {
 variable "alloy_image" {
   type    = string
   default = "grafana/alloy:latest"
+}
+
+variable "docker_api_proxy_image" {
+  type    = string
+  default = "lscr.io/linuxserver/socket-proxy:3.4.8-r0-ls107"
 }

@@ -16,6 +16,8 @@ resource "local_file" "nginx_config" {
 
       location / {
         proxy_pass http://streamforge;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
+        proxy_next_upstream_tries ${length(var.web_containers)};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
       }

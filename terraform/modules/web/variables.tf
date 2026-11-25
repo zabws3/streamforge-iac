@@ -10,11 +10,6 @@ variable "image" {
   type = string
 }
 
-variable "internal_port" {
-  type    = number
-  default = 3000
-}
-
 variable "networks" {
   type = list(string)
 }

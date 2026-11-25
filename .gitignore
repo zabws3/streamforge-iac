@@ -31,7 +31,7 @@ venv/
 .DS_Store
 
 # Generated Files
-terraform/environments/dev/generated/
+terraform/environments/*/generated/
 
 #Chunks content
 media/

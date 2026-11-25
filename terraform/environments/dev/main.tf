@@ -18,22 +18,11 @@ module "database" {
 }
 
 
-module "cache" {
-  source      = "../../modules/cache"
-  environment = var.environment
-  networks    = ["${var.environment}_backend"]
-
-  depends_on = [module.network]
-}
-
 module "storage" {
   source = "../../modules/storage"
 
-  environment = var.environment
-  networks = [
-    "${var.environment}_frontend",
-    "${var.environment}_backend"
-  ]
+  environment   = var.environment
+  networks      = ["${var.environment}_backend"]
   root_user     = var.minio_user
   root_password = var.minio_password
   api_port      = 9000
@@ -45,10 +34,9 @@ module "storage" {
 module "web" {
   source = "../../modules/web"
 
-  environment   = var.environment
-  replicas      = 2
-  image         = "streamforge-dev"
-  internal_port = 3000
+  environment = var.environment
+  replicas    = 2
+  image       = "streamforge-dev"
 
   networks = [
     "${var.environment}_frontend",
@@ -62,9 +50,6 @@ module "web" {
     MYSQL_PASSWORD = var.database_password
     MYSQL_DATABASE = var.database_name
 
-    REDIS_HOST = "${var.environment}_redis"
-    REDIS_PORT = "6379"
-
     SESSION_SECRET   = var.session_secret
     COOKIE_SECURE    = "false"
     SEED_DEMO_USERS  = "true"
@@ -73,12 +58,7 @@ module "web" {
     MINIO_SECRET_KEY = var.minio_password
   }
 
-  depends_on = [
-    module.database,
-    module.cache,
-    module.storage,
-    module.network
-  ]
+  depends_on = [module.database, module.storage, module.network]
 }
 
 module "load_balancer" {
@@ -107,15 +87,14 @@ module "monitoring" {
     "${var.environment}_backend"
   ]
   telegram_egress_network = "${var.environment}_frontend"
-  grafana_networks = [
-    "${var.environment}_monitoring",
-    "${var.environment}_frontend"
-  ]
+  grafana_networks        = ["${var.environment}_monitoring"]
 
   web_containers = [
     "${var.environment}_web_1",
     "${var.environment}_web_2"
   ]
+
+  cache_enabled = false
 
   grafana_port           = 3001
   grafana_admin_password = var.grafana_password

@@ -45,7 +45,7 @@ groups:
         annotations:
           summary: "All StreamForge Web replicas are unavailable"
           description: "No Web replica is responding to its HTTP health probe."
-          action: "Check both Web containers, the database, Redis, and the load balancer."
+          action: "Check the configured Web replicas, their dependencies, and the load balancer."
 
       - alert: LoadBalancerUnreachable
         expr: probe_success{job="blackbox", service="streamforge-load-balancer"} == 0
@@ -56,7 +56,7 @@ groups:
         annotations:
           summary: "Nginx Load Balancer is unreachable"
           description: "The HTTP health probe to the StreamForge load balancer failed."
-          action: "Check dev_load_balancer and its upstream configuration."
+          action: "Check ${environment}_load_balancer and its upstream configuration."
 
       - alert: MinIODown
         expr: probe_success{job="blackbox", service="minio"} == 0
@@ -67,7 +67,7 @@ groups:
         annotations:
           summary: "MinIO/Silo is unavailable"
           description: "The MinIO readiness endpoint did not return HTTP 2xx."
-          action: "Check dev_minio and its logs; verify the storage volume is healthy."
+          action: "Check ${environment}_minio and its logs; verify the storage volume is healthy."
 
       - alert: MySQLDown
         expr: probe_success{job="blackbox", service="mysql"} == 0
@@ -78,8 +78,9 @@ groups:
         annotations:
           summary: "MySQL is unavailable"
           description: "The TCP connection probe to MySQL failed."
-          action: "Check dev_database and its logs."
+          action: "Check ${environment}_database and its logs."
 
+%{ if cache_enabled ~}
       - alert: RedisDown
         expr: probe_success{job="blackbox", service="redis"} == 0
         for: 2m
@@ -89,7 +90,8 @@ groups:
         annotations:
           summary: "Redis is unavailable"
           description: "The TCP connection probe to Redis failed."
-          action: "Check dev_redis and its logs."
+          action: "Check ${environment}_redis and its logs."
+%{ endif ~}
 
       - alert: PrometheusTargetDown
         expr: up{job="cadvisor"} == 0
@@ -100,7 +102,7 @@ groups:
         annotations:
           summary: "cAdvisor metrics target is down"
           description: "Prometheus cannot scrape the cAdvisor target."
-          action: "Check dev_cadvisor and Prometheus scrape logs."
+          action: "Check ${environment}_cadvisor and Prometheus scrape logs."
 
       - alert: BlackboxExporterDown
         expr: up{job="blackbox_exporter"} == 0
@@ -111,7 +113,7 @@ groups:
         annotations:
           summary: "Blackbox Exporter is down"
           description: "Prometheus cannot scrape Blackbox Exporter."
-          action: "Check dev_blackbox_exporter; service reachability probes are unavailable."
+          action: "Check ${environment}_blackbox_exporter; service reachability probes are unavailable."
 
       - alert: NodeExporterDown
         expr: up{job="node_exporter"} == 0
@@ -122,7 +124,7 @@ groups:
         annotations:
           summary: "Node Exporter is down"
           description: "Prometheus cannot collect host disk metrics."
-          action: "Check dev_node_exporter and its host filesystem mount."
+          action: "Check ${environment}_node_exporter and its host filesystem mount."
 
       - alert: AlertmanagerDown
         expr: up{job="alertmanager"} == 0
@@ -133,7 +135,7 @@ groups:
         annotations:
           summary: "Alertmanager is down"
           description: "Prometheus cannot reach Alertmanager; Telegram notifications cannot be delivered."
-          action: "Check dev_alertmanager logs and Telegram configuration."
+          action: "Check ${environment}_alertmanager logs and Telegram configuration."
 
   - name: streamforge-resource-usage
     rules:

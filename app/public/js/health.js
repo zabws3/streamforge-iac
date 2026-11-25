@@ -39,8 +39,7 @@ async function checkHealth() {
         const appHealthy = true;
 
         const dbHealthy = data.database === "connected";
-        const redisConfigured = window.location.port === "8080";
-        // Si el endpoint informa del estado de Redis, lo usamos.
+        const redisConfigured = data.cache !== "disabled";
         const redisHealthy = data.cache === "connected";
 
         setStatus(

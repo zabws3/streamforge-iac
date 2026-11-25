@@ -96,7 +96,7 @@ app.get("/", (req, res) => {
 
 app.get("/health", async (req, res) => {
     let database = "disconnected";
-    let cache = "disconnected";
+    let cache = process.env.REDIS_HOST ? "disconnected" : "disabled";
 
     try {
         await db.query("SELECT 1");
