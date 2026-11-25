@@ -182,20 +182,30 @@ Blackbox Exporter use a read-only container root filesystem, drop Linux
 capabilities, and enable `no-new-privileges`. Writable service state is kept
 in named Docker volumes; short-lived runtime files use `tmpfs`.
 
-cAdvisor is no longer privileged and no longer receives the host root,
-Docker data directory, `/var/run` directory, or device tree. It receives
-only `/sys` plus the Docker and containerd sockets as read-only mounts, and
-collects the CPU, memory, network, and health metrics used by the alerts.
+cAdvisor is no longer privileged and does not receive the host root,
+`/var/run` directory, or device tree. It receives `/sys`, the Docker data
+directory, and the Docker and containerd sockets as read-only mounts. The
+Docker data directory is required to resolve overlay layer metadata and expose
+per-container metrics; cAdvisor collects the CPU, memory, network, and health
+metrics used by the alerts.
 The sockets still expose powerful APIs: a read-only socket mount does not
 make Docker/containerd API calls read-only. cAdvisor therefore has no host
 port and remains on the internal monitoring network. To keep the practice
 simple, Alloy reads Docker container logs directly through a read-only mount
-of the Docker socket. Alloy accesses the socket through its supplementary
-socket-owner group. Set the monitoring module's `docker_socket_gid` to the
-host's socket group ID if it differs from the default (`stat -c '%g'
-/var/run/docker.sock`). The socket grants access to the full Docker API; a
-read-only mount does not prevent API write operations. Alloy has no published
-host port and remains on the internal monitoring network.
+of the Docker socket. Each Alloy collector keeps only container names with its
+environment prefix (`dev_` or `pro_`) and adds `environment` and `container`
+labels before sending logs to that environment's separate Loki. The Grafana
+log panels query the environment label, so DEV logs are not sent to or shown
+from PRO Loki, and vice versa. Alloy and Loki are excluded from collection to
+avoid feeding the collector or its destination back into itself. Alloy
+accesses the socket through its supplementary socket-owner group. Set the
+monitoring module's
+`docker_socket_gid` to the host's socket group ID if it differs from the
+default (`stat -c '%g' /var/run/docker.sock`). The socket grants access to the
+full Docker API; a read-only mount does not prevent API write operations. Alloy
+has no published host port and remains on the internal monitoring network.
+Loki accepts backfilled Docker log entries up to 72 hours old so the collector
+can catch up after startup without rejecting the stored Docker log backlog.
 Prometheus and cAdvisor continue to supply the metrics dashboards without the
 proxy; Alloy and Loki remain so Docker logs are still available to Grafana.
 

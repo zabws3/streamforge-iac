@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Verified cAdvisor metrics and Docker logs for StreamForge DEV.",
+  "description": "Verified cAdvisor metrics and Docker logs for StreamForge.",
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -166,7 +166,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "count(container_last_seen{name=~\"dev_.*\"})",
+          "expr": "count(container_last_seen{name!=\"\"})",
           "instant": true,
           "legendFormat": "Total containers",
           "range": false,
@@ -925,12 +925,12 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "{service_name=\"unknown_service\"}",
+          "expr": "{environment=~\".+\"}",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Recent infrastructure logs (service labels unavailable)",
+      "title": "Recent logs — this environment",
       "type": "logs"
     },
     {
@@ -966,12 +966,12 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "{service_name=\"unknown_service\"} |= \"level=error\"",
+          "expr": "{environment=~\".+\"} |= \"level=error\"",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Error-level logs (all collected containers)",
+      "title": "Error-level logs — this environment",
       "type": "logs"
     },
     {
@@ -1021,7 +1021,7 @@
             "uid": "P8E80F9AEF21F6940"
           },
           "editorMode": "code",
-          "expr": "{service_name=\"unknown_service\"} |= \"[DASH]\" !~ \"caller=\"",
+          "expr": "{environment=~\".+\"} |= \"[DASH]\" !~ \"caller=\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -1266,8 +1266,7 @@
   "tags": [
     "streamforge",
     "infrastructure",
-    "docker",
-    "dev"
+    "docker"
   ],
   "templating": {
     "list": [
@@ -1282,7 +1281,7 @@
           "type": "prometheus",
           "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(container_last_seen{name=~\"dev_.*\"}, name)",
+        "definition": "label_values(container_last_seen{name!=\"\"}, name)",
         "hide": 0,
         "includeAll": true,
         "label": "Container",
@@ -1290,7 +1289,7 @@
         "name": "container",
         "options": [],
         "query": {
-          "query": "label_values(container_last_seen{name=~\"dev_.*\"}, name)",
+          "query": "label_values(container_last_seen{name!=\"\"}, name)",
           "refId": "Prometheus"
         },
         "refresh": 1,

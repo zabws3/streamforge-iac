@@ -2,9 +2,37 @@ discovery.docker "containers" {
   host = "${docker_host}"
 }
 
+discovery.relabel "environment_containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/${environment}_.+"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/${environment}_(alloy|loki)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.+)"
+    target_label  = "container"
+    replacement   = "$1"
+  }
+
+  rule {
+    target_label = "environment"
+    replacement  = "${environment}"
+  }
+}
+
 loki.source.docker "containers" {
   host       = "${docker_host}"
-  targets     = discovery.docker.containers.targets
+  targets     = discovery.relabel.environment_containers.output
   forward_to = [loki.write.default.receiver]
 }
 

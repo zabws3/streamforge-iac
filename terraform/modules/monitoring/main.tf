@@ -170,6 +170,13 @@ resource "docker_container" "cadvisor" {
     read_only = true
   }
 
+  mounts {
+    type      = "bind"
+    source    = "/var/lib/docker"
+    target    = "/var/lib/docker"
+    read_only = true
+  }
+
   # Socket mounts are read-only, but their APIs remain powerful; this container
   # is therefore unprivileged, unexposed, and reachable only on monitoring.
   mounts {
@@ -412,6 +419,10 @@ resource "docker_container" "loki" {
       name = networks_advanced.value
     }
   }
+
+  lifecycle {
+    replace_triggered_by = [local_file.loki_config]
+  }
 }
 
 ################### ALLOY ###################
@@ -473,6 +484,10 @@ resource "docker_container" "alloy" {
     source    = local_file.alloy_config.filename
     target    = "/etc/alloy/config.alloy"
     read_only = true
+  }
+
+  lifecycle {
+    replace_triggered_by = [local_file.alloy_config]
   }
 
   depends_on = [docker_container.loki]
