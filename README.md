@@ -1,36 +1,36 @@
 # StreamForge — Infrastructure as Code
 
-StreamForge despliega con Terraform una aplicación web de streaming de vídeo y sus dependencias en contenedores Docker. Los roots independientes `dev` y `pro` reutilizan módulos de infraestructura y difieren en escala, servicios habilitados y puertos publicados.
+StreamForge uses Terraform to deploy a Docker-based video-streaming web application and its supporting services. The independent `dev` and `pro` roots reuse infrastructure modules and differ in scale, enabled services, and published ports.
 
-## Índice
+## Table of Contents
 
-1. [Setup y ejecución del proyecto](#1-setup-y-ejecución-del-proyecto)
-2. [Partes del proyecto y arquitectura](#2-partes-del-proyecto-y-arquitectura)
-3. [Tests y validación](#3-tests-y-validación)
-4. [Funcionamiento de la aplicación](#4-funcionamiento-de-la-aplicación)
-5. [Datos, MinIO y persistencia](#5-datos-minio-y-persistencia)
-6. [Monitorización, logs y alertas](#6-monitorización-logs-y-alertas)
-7. [Redes y políticas de acceso](#7-redes-y-políticas-de-acceso)
-8. [Limitaciones y troubleshooting](#8-limitaciones-y-troubleshooting)
+1. [Setup and Project Execution](#1-setup-and-project-execution)
+2. [Project Components and Architecture](#2-project-components-and-architecture)
+3. [Tests and Validation](#3-tests-and-validation)
+4. [Application](#4-application)
+5. [Data, MinIO, and Persistence](#5-data-minio-and-persistence)
+6. [Monitoring, Logs, and Alerts](#6-monitoring-logs-and-alerts)
+7. [Networks and Access Policies](#7-networks-and-access-policies)
+8. [Limitations and Troubleshooting](#8-limitations-and-troubleshooting)
 
 ---
 
-# 1. Setup y ejecución del proyecto
+# 1. Setup and Project Execution
 
-## 1.1 Prerrequisitos
+## 1.1 Prerequisites
 
-| Requisito | Uso |
+| Requirement | Purpose |
 |---|---|
-| Git | Clonar el repositorio. |
-| Docker Engine y Docker CLI | Ejecutar los contenedores; Docker debe estar iniciado y accesible por el usuario. |
-| Terraform `>= 1.5.0` | Inicializar, validar y desplegar los roots. |
-| GNU Make | Ejecutar los objetivos del `Makefile`. |
-| Bash y `curl` | Ejecutar la demo y hacer comprobaciones HTTP. |
-| Python 3 | Ejecutar la utilidad de carga incluida en `scripts/demo/`. |
+| Git | Clone the repository. |
+| Docker Engine and Docker CLI | Run the containers; Docker must be running and accessible to the user. |
+| Terraform `>= 1.5.0` | Initialize, validate, and deploy the roots. |
+| GNU Make | Run the targets in the `Makefile`. |
+| Bash and `curl` | Run the demo and make HTTP checks. |
+| Python 3 | Run the load utility in `scripts/demo/`. |
 
-Terraform instala los providers declarados por el proyecto durante `init`: `kreuzwerker/docker ~> 3.0` y `hashicorp/local ~> 2.5`. Docker Compose no se utiliza ni hay un manifiesto Compose. La aplicación se construye con Node.js 22 dentro de su imagen; Node.js en el host no es necesario para desplegarla. Node.js sí se usa si se ejecuta localmente la utilidad de subida de vídeos.
+Terraform installs the declared providers during `init`: `kreuzwerker/docker ~> 3.0` and `hashicorp/local ~> 2.5`. Docker Compose is not used and there is no Compose manifest. The application image uses Node.js 22; Node.js on the host is not required for deployment. Node.js is needed on the host only if you run the video-upload utility locally.
 
-## 1.2 Descargar y configurar
+## 1.2 Clone and configure
 
 ```bash
 git clone https://github.com/zabws3/streamforge-iac.git
@@ -41,169 +41,169 @@ terraform version
 make help
 ```
 
-Terraform lee las variables de cada entorno desde `terraform/environments/dev/dev.tfvars` o `terraform/environments/pro/pro.tfvars`; también admite variables de entorno `TF_VAR_*`. No hay `.env` ni `.env.example`. Los ficheros `*.tfvars` están ignorados por Git: créalos localmente y no los añadas al repositorio.
+Terraform reads each environment's variables from `terraform/environments/dev/dev.tfvars` or `terraform/environments/pro/pro.tfvars`; it also supports `TF_VAR_*` environment variables. There is no `.env` or `.env.example`. The `*.tfvars` files are ignored by Git: create them locally and do not commit them.
 
-Variables sensibles obligatorias:
+Required sensitive variables:
 
-| Entorno | Variables |
+| Environment | Variables |
 |---|---|
 | DEV | `database_password`, `database_root_password`, `minio_password`, `grafana_password`, `session_secret` |
-| PRO | Las variables de DEV más `telegram_bot_token` y `telegram_chat_id` |
+| PRO | The DEV variables plus `telegram_bot_token` and `telegram_chat_id` |
 
-Rellena cada fichero con valores propios, respetando los nombres y tipos declarados en `terraform/environments/<entorno>/variables.tf`. PRO solo envía notificaciones a Telegram cuando se proporcionan los valores de bot y chat. No incluyas credenciales reales en documentación o control de versiones. Terraform puede almacenar valores sensibles en el state local, por lo que también hay que proteger ese state y las copias de seguridad.
+Create each file using the names and types declared in `terraform/environments/<environment>/variables.tf`. PRO sends Telegram notifications only when bot and chat values are configured. Do not put real credentials in documentation or version control. Terraform may store sensitive values in the local state, so protect the state files and their backups.
 
-## 1.3 Desplegar DEV
+## 1.3 Deploy DEV
 
 ```bash
 make dev-init
 make dev-validate
 make dev-plan
-# Revisa el plan antes de confirmar los cambios:
+# Review the plan before confirming changes:
 make dev-deploy
 ```
 
-`make dev-deploy` genera el plan y lo aplica. `make dev-up` también aplica, pero no ofrece el mismo paso explícito de revisión. `make setup` es un alias de `make dev-up`. El estado Terraform de DEV es independiente del de PRO.
+`make dev-deploy` creates and applies a plan. `make dev-up` also applies, but does not provide the same explicit review step. `make setup` is an alias for `make dev-up`. DEV and PRO use independent Terraform roots and state.
 
-## 1.4 Desplegar PRO
+## 1.4 Deploy PRO
 
-Primero completa `terraform/environments/pro/pro.tfvars`, incluidas las credenciales de Telegram si se quieren notificaciones.
+First configure `terraform/environments/pro/pro.tfvars`, including Telegram credentials if notifications are required.
 
 ```bash
 make pro-init
 make pro-validate
 make pro-plan
-# Revisa el plan antes de confirmar los cambios:
+# Review the plan before confirming changes:
 make pro-deploy
 ```
 
-`make pro-deploy` genera y aplica un plan. `make pro-up` inicializa Terraform y aplica directamente. Alertmanager y las reglas de alertas solo forman parte de PRO.
+`make pro-deploy` creates and applies a plan. `make pro-up` initializes Terraform and applies directly. Alertmanager and alert rules are only deployed in PRO.
 
-## 1.5 Diferencias de acceso entre entornos
+## 1.5 Environment access URLs
 
-| Servicio | DEV | PRO | Publicación |
+| Service | DEV | PRO | Exposure |
 |---|---:|---:|---|
-| Aplicación mediante Nginx Load Balancer | `http://localhost:8081` | `http://localhost:8082` | Puerto del host |
-| MinIO API | `http://localhost:9000` | `http://localhost:9100` | Enlazado a `127.0.0.1` |
-| Consola MinIO | `http://localhost:9001` | `http://localhost:9101` | Enlazado a `127.0.0.1` |
-| Grafana | `http://localhost:3001` | `http://localhost:3002` | Enlazado a `127.0.0.1` |
-| Prometheus | `http://localhost:9090` | `http://localhost:9091` | Enlazado a `127.0.0.1` |
+| Application through Nginx Load Balancer | `http://localhost:8081` | `http://localhost:8082` | Published host port |
+| MinIO API | `http://localhost:9000` | `http://localhost:9100` | Bound to `127.0.0.1` |
+| MinIO Console | `http://localhost:9001` | `http://localhost:9101` | Bound to `127.0.0.1` |
+| Grafana | `http://localhost:3001` | `http://localhost:3002` | Bound to `127.0.0.1` |
+| Prometheus | `http://localhost:9090` | `http://localhost:9091` | Bound to `127.0.0.1` |
 
-Las credenciales de Grafana y MinIO son las configuradas para el entorno en los ficheros locales de variables. Las réplicas web no publican puertos individuales: se accede a ellas mediante el balanceador.
+Use the Grafana and MinIO credentials configured locally for that environment. Individual Web replicas do not publish host ports; access them through the load balancer.
 
-## 1.6 Comprobar, consultar logs y parar
+## 1.6 Verify, inspect logs, and stop
 
 ```bash
-# Estado de los contenedores del entorno
+# Container status by environment
 docker ps --filter name=dev_
 docker ps --filter name=pro_
 
-# Comprobación HTTP de la aplicación a través del balanceador
+# Application health through the load balancer
 curl -fsS http://localhost:8081/health
 curl -fsS http://localhost:8082/health
 
-# Prometheus: página de targets
+# Prometheus targets page
 curl -fsS http://localhost:9090/targets
 curl -fsS http://localhost:9091/targets
 
-# Logs de un contenedor concreto (sustituye el nombre por el que muestre docker ps)
+# Logs for a specific container
 docker logs --tail 100 dev_load_balancer
 docker logs --tail 100 pro_load_balancer
 ```
 
-La demo operativa incluida está fijada a PRO:
+The included operational demo is configured for PRO:
 
 ```bash
 bash demo.sh
 ```
 
-Su menú permite ejecutar comprobaciones y escenarios; algunas opciones generan carga, reinician servicios o envían una alerta de prueba. Lee las confirmaciones que presenta la demo antes de seleccionar una opción. Hay más información en [DEMO-README.md](./DEMO-README.md).
+Its menu includes checks and scenarios; some options generate load, restart services, or send a test alert. Read each confirmation prompt before selecting an option. See [DEMO-README.md](./DEMO-README.md) for additional information.
 
-No existe un objetivo Make de parada que preserve explícitamente los contenedores. Para pararlos sin destruirlos:
+There is no Make target that stops the environment while explicitly preserving its containers. To stop the containers without destroying them:
 
 ```bash
 docker ps -q --filter name=dev_ | xargs -r docker stop
 docker ps -q --filter name=pro_ | xargs -r docker stop
 ```
 
-Esto conserva contenedores y volúmenes, pero Terraform puede recrear recursos en una aplicación posterior. `make dev-destroy`, `make pro-destroy` y `make dev-restart` sí destruyen o reconstruyen recursos. Antes de usarlos, revisa el plan y considera que la eliminación de volúmenes implica pérdida de datos persistidos.
+This leaves containers and volumes in place, but Terraform may recreate resources during a later apply. `make dev-destroy`, `make pro-destroy`, and `make dev-restart` destroy or rebuild resources. Review the plan first; deleting volumes can permanently remove persisted data.
 
-## 1.7 Objetivos Make disponibles
+## 1.7 Available Make targets
 
-`make help` muestra estos objetivos. `init` prepara el root; `validate` valida la configuración; `plan` muestra cambios; `up` aplica directamente y `deploy` genera y aplica un plan.
+Run `make help` to display the targets. `init` initializes a root, `validate` validates its configuration, `plan` displays proposed changes, `up` applies directly, and `deploy` creates and applies a plan.
 
-| Grupo | Objetivos |
+| Group | Targets |
 |---|---|
 | DEV | `dev-init`, `dev-validate`, `dev-plan`, `dev-up`, `dev-deploy`, `dev-destroy`, `dev-output`, `dev-ps`, `dev-logs`, `web-logs`, `lb-logs`, `grafana-logs`, `dev-restart`, `setup` |
 | PRO | `pro-init`, `pro-validate`, `pro-plan`, `pro-up`, `pro-deploy`, `pro-destroy`, `pro-output`, `pro-ps` |
 
-`dev-ps` lista todos los contenedores visibles en Docker; `pro-ps` filtra los nombres `pro_`. `dev-logs` consulta Web, balanceador, MySQL y Redis, aunque Redis no se despliega en DEV, por lo que ese último comando puede fallar. `web-logs`, `lb-logs` y `grafana-logs` siguen los logs de contenedores DEV. `dev-restart` destruye DEV y vuelve a aplicar los recursos; no lo uses como simple parada.
+`dev-ps` lists all containers visible to Docker; `pro-ps` filters names beginning with `pro_`. `dev-logs` reads Web, load balancer, MySQL, and Redis logs, although Redis is not deployed in DEV, so that target can fail at its Redis command. `web-logs`, `lb-logs`, and `grafana-logs` follow DEV container logs. `dev-restart` destroys and reapplies DEV; it is not a stop-only operation.
 
 ---
 
-# 2. Partes del proyecto y arquitectura
+# 2. Project Components and Architecture
 
-## 2.1 Componentes principales
+## 2.1 Main Components
 
-| Componente | Función | Tecnología |
+| Component | Purpose | Technology |
 |---|---|---|
-| Aplicación Web | Interfaz y endpoints de salud, instancia y streaming de vídeo. | Node.js 22, Express |
-| Load Balancer | Distribuye solicitudes entre las réplicas Web. | Nginx |
-| Base de datos | Datos relacionales de la aplicación. | MySQL |
-| Caché | Caché y almacenamiento de sesiones habilitado en PRO. | Redis |
-| Almacenamiento multimedia | API S3 compatible, consola y objetos de vídeo. | MinIO |
-| Métricas | Recopila métricas de los servicios y exporters. | Prometheus |
-| Dashboard | Consulta métricas y logs. | Grafana |
-| Métricas de contenedores | Uso y estado de los contenedores Docker. | cAdvisor |
-| Métricas del host | Métricas de sistema, incluidas las de disco. | Node Exporter |
-| Sondeos de disponibilidad | Comprueba endpoints HTTP y conexiones de red. | Blackbox Exporter |
-| Agente de logs | Descubre y etiqueta logs de contenedores del entorno. | Grafana Alloy |
-| Almacenamiento de logs | Recibe y consulta logs. | Loki |
-| Alertas y notificaciones | Evalúa reglas y enruta notificaciones Telegram. Solo PRO. | Prometheus, Alertmanager |
+| Web application | UI and health, instance, and video-streaming endpoints. | Node.js 22, Express |
+| Load balancer | Distributes requests among Web replicas. | Nginx |
+| Database | Relational application data. | MySQL |
+| Cache | Cache and session storage, enabled in PRO. | Redis |
+| Media storage | S3-compatible API, console, and video objects. | MinIO |
+| Metrics collection | Collects service and exporter metrics. | Prometheus |
+| Dashboard | Queries metrics and logs. | Grafana |
+| Container metrics | Docker container usage and state. | cAdvisor |
+| Host metrics | System metrics, including disk usage. | Node Exporter |
+| Availability probes | Checks HTTP endpoints and network connections. | Blackbox Exporter |
+| Log agent | Discovers and labels logs for its environment. | Grafana Alloy |
+| Log storage | Receives and queries logs. | Loki |
+| Alerts and notifications | Evaluates rules and routes Telegram notifications; PRO only. | Prometheus, Alertmanager |
 
-No se ha implementado Nginx Exporter. La lista de servicios por entorno se define en los roots Terraform; las diferencias principales se resumen en [la tabla de entornos](#15-diferencias-de-acceso-entre-entornos).
+Nginx Exporter is not implemented. The environment roots define the deployed services; the main differences are summarized in [the environment access table](#15-environment-access-urls).
 
-## 2.2 Arquitectura global
+## 2.2 Overall Architecture
 
-El diagrama muestra los servicios y flujos principales. Las redes se crean con prefijo de entorno (`dev_` o `pro_`); DEV no incluye Redis ni el módulo de alertas.
+The diagram shows the main service relationships. Docker networks are created with an environment prefix (`dev_` or `pro_`). DEV does not include Redis or the alerts module.
 
 ```mermaid
 flowchart LR
-    U[Usuario / navegador] -->|HTTP :8081 DEV / :8082 PRO| LB[Nginx Load Balancer]
+    U[User / browser] -->|HTTP :8081 DEV / :8082 PRO| LB[Nginx Load Balancer]
     LB --> W1[Web 1]
     LB --> W2[Web 2]
-    LB -.->|solo PRO| W3[Web 3]
+    LB -.->|PRO only| W3[Web 3]
     W1 --> DB[(MySQL)]
     W2 --> DB
-    W3 -.->|solo PRO| DB
-    W1 -.->|solo PRO| R[(Redis)]
-    W2 -.->|solo PRO| R
-    W3 -.->|solo PRO| R
-    W1 -->|objetos de vídeo| M[MinIO]
+    W3 -.->|PRO only| DB
+    W1 -.->|PRO only| R[(Redis)]
+    W2 -.->|PRO only| R
+    W3 -.->|PRO only| R
+    W1 -->|video objects| M[MinIO]
     W2 --> M
     W3 -.-> M
 
-    subgraph Observabilidad["Redes de monitorización del entorno"]
+    subgraph Observability["Environment monitoring networks"]
         P[Prometheus] --> CA[cAdvisor]
         P --> NE[Node Exporter]
         P --> BB[Blackbox Exporter]
-        P -->|alertas solo PRO| AM[Alertmanager]
+        P -->|PRO alerts| AM[Alertmanager]
         A[Alloy] --> L[Loki]
         G[Grafana] --> P
         G --> L
     end
-    P -->|reglas PRO| AM
-    AM -->|solo PRO| TG[Telegram]
+    P -->|PRO rules| AM
+    AM -->|PRO only| TG[Telegram]
     CA -.->|Docker socket| D[Docker Engine]
-    A -.->|logs filtrados por entorno| D
+    A -.->|environment-filtered logs| D
 
-    U -.->|consola/API vía localhost| M
+    U -.->|localhost API / console| M
     U -.->|localhost| G
     U -.->|localhost| P
 ```
 
-El usuario accede a la aplicación a través del balanceador. Las Web comparten MySQL y MinIO; PRO añade Redis y una tercera réplica. Prometheus consulta exporters y los sondeos Blackbox. Alloy envía logs etiquetados a Loki; Grafana consulta Prometheus y Loki. Las alertas de PRO se enrutan desde Alertmanager a Telegram.
+Users access the application through the load balancer. Web replicas share MySQL and MinIO; PRO adds Redis and a third replica. Prometheus scrapes exporters and uses Blackbox probes. Alloy sends labeled logs to Loki; Grafana queries Prometheus and Loki. PRO alerts are routed from Alertmanager to Telegram.
 
-## 2.3 Estructura real de Terraform y del repositorio
+## 2.3 Terraform Structure
 
 ```text
 .
@@ -241,125 +241,125 @@ El usuario accede a la aplicación a través del balanceador. Las Web comparten 
 └── demo.sh
 ```
 
-Un **root** es la configuración de entrada de Terraform que selecciona providers, variables y módulos para un entorno. `terraform/environments/dev` y `terraform/environments/pro` son roots independientes. Cada uno invoca los módulos reutilizables de red, base de datos, caché, almacenamiento, Web, balanceador y monitorización; el root PRO invoca además `alerts`.
+A **root** is a Terraform entry point that selects providers, variables, and modules for an environment. `terraform/environments/dev` and `terraform/environments/pro` are independent roots. Both reuse the `network`, `database`, `cache`, `storage`, `web`, `load_balancer`, and `monitoring` modules; PRO also uses `alerts`.
 
-Los módulos encapsulan recursos Docker y exponen outputs para que el root conecte redes, nombres, puertos y dependencias sin duplicar la implementación. Las variables parametrizan el entorno, el número de réplicas, credenciales y opciones de servicios. Los directorios `generated/` contienen configuraciones producidas por Terraform en ejecución y no son módulos fuente.
+Modules encapsulate Docker resources and expose outputs for the root to connect networks, names, ports, and dependencies without duplicating implementation. Variables parameterize the environment, replica count, credentials, and service options. The roots pass module outputs where needed to connect monitoring and alerting. `generated/` directories contain configurations produced by Terraform at runtime; they are not source modules.
 
 ---
 
-# 3. Tests y validación
+# 3. Tests and Validation
 
-## 3.1 Validación Terraform
+## 3.1 Terraform Validation
 
-| Comprobación | Comando | Qué valida |
+| Check | Command | What it validates |
 |---|---|---|
-| Formato de todos los archivos Terraform | `terraform fmt -check -recursive terraform` | Que el código está formateado; no modifica archivos. |
-| Root DEV | `make dev-validate` | Sintaxis y configuración de Terraform DEV con los providers inicializados. |
-| Root PRO | `make pro-validate` | Sintaxis y configuración de Terraform PRO con los providers inicializados. |
-| Plan DEV | `make dev-plan` | Cambios propuestos por Terraform, sin aplicarlos. |
-| Plan PRO | `make pro-plan` | Cambios propuestos por Terraform, sin aplicarlos. |
+| Terraform formatting | `terraform fmt -check -recursive terraform` | Checks formatting without modifying files. |
+| DEV root | `make dev-validate` | Validates DEV Terraform configuration with providers initialized. |
+| PRO root | `make pro-validate` | Validates PRO Terraform configuration with providers initialized. |
+| DEV plan | `make dev-plan` | Shows proposed DEV changes without applying them. |
+| PRO plan | `make pro-plan` | Shows proposed PRO changes without applying them. |
 
-`terraform validate` no sustituye a `terraform plan`: validar no comprueba que Docker pueda crear todos los recursos ni que los valores locales produzcan el comportamiento esperado. Revisa siempre el plan antes de desplegar.
+`terraform validate` does not replace `terraform plan`: validation does not establish that Docker can create every resource or that local variable values produce the intended runtime behavior. Review plans before deployment.
 
-## 3.2 Tests de aplicación
+## 3.2 Application Tests
 
-No hay suite automatizada de tests de aplicación ni script `test` en `app/package.json`. No se debe ejecutar `npm test` como si estuviese configurado. Hay endpoints de salud y de identificación de instancia que se pueden comprobar con la demo o mediante HTTP; son comprobaciones operativas, no tests unitarios.
+There is no automated application test suite or `test` script in `app/package.json`; do not assume that `npm test` is configured. The health and instance endpoints can be checked with the demo or HTTP requests, but these are operational checks, not unit tests.
 
-La utilidad [scripts/demo/load_test.py](./scripts/demo/load_test.py) genera carga acotada para la demo. No es una suite de tests automatizada.
+The utility [scripts/demo/load_test.py](./scripts/demo/load_test.py) generates bounded load for the demo. It is not an automated test suite.
 
-## 3.3 Tests de infraestructura
+## 3.3 Infrastructure Tests
 
-`demo.sh` ofrece comprobaciones operativas sobre PRO, incluidas disponibilidad, balanceo, monitorización, logs, MinIO, redes y alertas. Según la opción elegida, algunas pruebas pueden generar carga, reiniciar servicios o emitir notificaciones. No se han ejecutado todas en esta revisión.
+`demo.sh` provides operational checks against PRO, including availability, load balancing, monitoring, logs, MinIO, networks, and alerts. Depending on the selected option, checks can generate load, restart services, or send notifications. Not all options were run during this review.
 
-| Comprobación | Estado en esta revisión |
+| Check | Status in this review |
 |---|---|
-| Contenedores esperados y endpoints principales de PRO | Ejecutada mediante la opción de validación general de la demo. |
-| Validación de configuración Terraform DEV y PRO | Ejecutada. |
-| Formato Terraform y sintaxis de scripts | Ejecutados. |
-| `terraform plan` DEV/PRO | Pendiente de ejecución. |
-| Failover, persistencia tras reinicio y carga/balanceo | Pendiente de ejecución en esta revisión. |
-| Aislamiento de logs DEV/PRO tras aplicar la configuración | Pendiente de comprobación en runtime. |
-| Entrega real de alertas a Telegram | Pendiente; la demo detectó Alertmanager, pero no verifica la recepción final del mensaje. |
+| Expected PRO containers and primary endpoints | Executed using the demo's general validation option. |
+| DEV and PRO Terraform validation | Executed. |
+| Terraform formatting and script syntax checks | Executed. |
+| `terraform plan` for DEV and PRO | Not executed. |
+| Failover, persistence after restart, and load/balancing scenarios | Not executed in this review. |
+| Runtime DEV/PRO log isolation after applying the configuration | Not executed. |
+| Actual Telegram message delivery | Not executed; the demo found Alertmanager but does not verify receipt of the final message. |
 
-## 3.4 Resultados y outputs observados
+## 3.4 Test Results and Outputs
 
-Resultados de comandos ejecutados en el checkout local durante esta revisión:
+The following results were observed in the local checkout during the preceding review:
 
-| Test | Comando | Resultado | Evidencia |
+| Test | Command | Result | Evidence |
 |---|---|---|---|
-| Formato Terraform | `terraform fmt -check -recursive terraform` | PASS | Código de salida 0; sin diferencias de formato. |
-| Validación DEV | `make dev-validate` | PASS | Terraform mostró `Success! The configuration is valid.` |
-| Validación PRO | `make pro-validate` | PASS | Terraform mostró `Success! The configuration is valid.` |
-| Sintaxis de la demo | `bash -n demo.sh` | PASS | Código de salida 0. |
-| Sintaxis de JavaScript | `node --check app/src/app.js` y `node --check app/scripts/upload-video.js` | PASS | Ambos comandos terminaron con código 0. |
-| Sintaxis Python | `python3 -m py_compile scripts/demo/load_test.py` | PASS | Código de salida 0. |
-| Integridad del diff | `git diff --check` | PASS | Sin errores de whitespace en los cambios revisados. |
-| Validación operativa PRO | `bash demo.sh`, opción 13 (solo lectura) | `21 PASS \| 0 FAIL \| 1 WARNING` | Los 15 contenedores esperados estaban en ejecución; respondieron `/health`, `/instance`, Prometheus, Grafana y MinIO. Warning: Alertmanager está presente, pero la entrega a Telegram no se verificó. |
+| Terraform formatting | `terraform fmt -check -recursive terraform` | PASS | Exit code 0; no formatting changes reported. |
+| DEV validation | `make dev-validate` | PASS | Terraform printed `Success! The configuration is valid.` |
+| PRO validation | `make pro-validate` | PASS | Terraform printed `Success! The configuration is valid.` |
+| Demo shell syntax | `bash -n demo.sh` | PASS | Exit code 0. |
+| JavaScript syntax | `node --check app/src/app.js` and `node --check app/scripts/upload-video.js` | PASS | Both commands exited with code 0. |
+| Python syntax | `python3 -m py_compile scripts/demo/load_test.py` | PASS | Exit code 0. |
+| Diff whitespace | `git diff --check` | PASS | No whitespace errors in the reviewed changes. |
+| PRO operational validation | `bash demo.sh`, option 13 (read-only) | `21 PASS \| 0 FAIL \| 1 WARNING` | All 15 expected containers were running; `/health`, `/instance`, Prometheus, Grafana, and MinIO responded. Warning: Alertmanager was present, but Telegram delivery was not verified. |
 
-Los resultados son del entorno disponible al ejecutar la revisión; no garantizan el estado de un despliegue futuro. No se ejecutó `terraform apply` ni `terraform destroy` para documentar estos resultados.
-
----
-
-# 4. Funcionamiento de la aplicación
-
-## 4.1 Balanceo de carga
-
-Nginx recibe el tráfico de la aplicación y distribuye las solicitudes entre las réplicas configuradas usando el algoritmo round robin predeterminado de un bloque `upstream` (no se configura `least_conn`). DEV despliega dos réplicas Web y PRO tres. La configuración permite reintentar en otra réplica ante errores de conexión, timeout y respuestas HTTP 502, 503 o 504. Las réplicas no publican puertos en el host: el acceso se hace por `localhost:8081` (DEV) o `localhost:8082` (PRO).
-
-El endpoint `/instance` ayuda a identificar qué réplica atendió una solicitud. El comportamiento de distribución y failover se puede observar con las opciones correspondientes de `demo.sh`; estas pruebas no se consideran ejecutadas en esta revisión.
-
-## 4.2 Caché y comprobación de salud
-
-Redis está habilitado únicamente en PRO. La aplicación utiliza MySQL para datos persistentes y Redis para las funciones de caché/sesión configuradas. El endpoint `/health` permite comprobar la salud de la aplicación y sus dependencias configuradas.
-
-## 4.3 Streaming DASH
-
-El reproductor web usa manifiestos MPEG-DASH (`.mpd`) y fragmentos (`.m4s`). La ruta `/video/stream/` sirve estos objetos desde los buckets de MinIO y, si un objeto no está allí, puede recurrir al directorio multimedia local configurado en la aplicación. La ruta también soporta solicitudes de rango para fragmentos de vídeo.
-
-La utilidad `app/scripts/upload-video.js` carga un directorio de vídeo que contiene `manifest.mpd` y fragmentos `.m4s` a MinIO. Consulta su mensaje de uso ejecutando el script con los requisitos de Node y las credenciales de MinIO configuradas; no es necesaria para el despliegue base.
+These are results from the environment at the time of execution and do not guarantee the state of a future deployment. No `terraform apply` or `terraform destroy` was run to produce these results.
 
 ---
 
-# 5. Datos, MinIO y persistencia
+# 4. Application
 
-MinIO proporciona almacenamiento compatible con S3 para los vídeos. La API y la consola web se publican en puertos distintos para DEV y PRO; en ambos casos se enlazan a la interfaz loopback del host. El directorio `media/` del repositorio también se monta como contenido de solo lectura.
+## 4.1 Load Balancing and Round Robin
 
-| Datos | Persistencia |
+Nginx receives application traffic and distributes requests among the configured replicas using the default round-robin algorithm of an `upstream` block (`least_conn` is not configured). DEV deploys two Web replicas; PRO deploys three. The configuration retries another replica on connection errors, timeouts, and HTTP 502, 503, or 504 responses. Replicas do not publish host ports; access them through `localhost:8081` (DEV) or `localhost:8082` (PRO).
+
+The `/instance` endpoint helps identify which replica served a request. The demo has options for observing request distribution and failover; those scenarios were not executed in this review.
+
+## 4.2 Cache and Health Checks
+
+Redis is enabled only in PRO. The application uses MySQL for persistent data and Redis for configured cache/session behavior. The `/health` endpoint checks application health and configured dependencies.
+
+## 4.3 DASH Streaming
+
+The web player uses MPEG-DASH manifests (`.mpd`) and media segments (`.m4s`). The `/video/stream/` route serves these objects from MinIO buckets and can fall back to the configured local media directory when an object is not in MinIO. The route supports byte-range requests for video segments.
+
+`app/scripts/upload-video.js` uploads a video directory containing `manifest.mpd` and `.m4s` segments to MinIO. Run the script with the required Node.js runtime and MinIO credentials configured; it is not needed for the base deployment.
+
+---
+
+# 5. Data, MinIO, and Persistence
+
+MinIO provides S3-compatible storage for videos. Its API and web console use different published ports in DEV and PRO; both bind to the host loopback interface. The repository's `media/` directory is also mounted read-only.
+
+| Data | Persistence |
 |---|---|
-| MySQL | Volumen Docker nombrado; `db/init.sql` se utiliza durante la inicialización de la base de datos. |
-| Objetos MinIO | Volumen Docker nombrado. |
-| Prometheus, Grafana, Loki y Alloy | Volúmenes de datos de monitorización. |
-| Alertmanager | Volumen en PRO. |
-| Redis | No tiene volumen persistente configurado. |
+| MySQL | Named Docker volume; `db/init.sql` is used during database initialization. |
+| MinIO objects | Named Docker volume. |
+| Prometheus, Grafana, Loki, and Alloy | Monitoring data volumes. |
+| Alertmanager | Volume in PRO. |
+| Redis | No persistent volume is configured. |
 
-Los volúmenes Docker sobreviven a la parada normal de contenedores. Destruir o eliminar un volumen puede borrar los datos asociados; `terraform destroy` no debe tratarse como una operación inocua. La demo incluye comprobaciones de MinIO y persistencia, pero solo se deben considerar verificadas cuando se ejecute la opción correspondiente.
+Docker volumes survive normal container stops. Destroying or removing a volume may delete its data; `terraform destroy` is not a harmless stop operation. The demo includes MinIO and persistence checks, but consider them verified only after running the corresponding option.
 
 ---
 
-# 6. Monitorización, logs y alertas
+# 6. Monitoring, Logs, and Alerts
 
-## 6.1 Métricas y dashboards
+## 6.1 Metrics and Dashboards
 
-Prometheus recopila métricas de cAdvisor, Node Exporter y Blackbox Exporter, además de los targets definidos para cada entorno. Blackbox realiza sondeos de disponibilidad HTTP y TCP; no reemplaza a los exporters de métricas de recursos. Grafana incluye un dashboard de infraestructura con métricas de contenedores y host.
+Prometheus collects metrics from cAdvisor and Node Exporter and runs availability probes through Blackbox Exporter, along with the other targets defined per environment. Blackbox probes HTTP and TCP availability; it does not replace resource-metric exporters. Grafana includes an infrastructure dashboard for container and host metrics.
 
-Grafana consulta el Prometheus y Loki del mismo entorno. Los puertos de Grafana y Prometheus están enlazados a `127.0.0.1`, por lo que su publicación está limitada al host local por defecto. Nginx Exporter no está implementado.
+Grafana queries the Prometheus and Loki instance for its own environment. Grafana and Prometheus ports bind to `127.0.0.1`, limiting their published access to the local host by default. Nginx Exporter is not implemented.
 
-PromQL es el lenguaje de consulta de Prometheus. Por ejemplo, el dashboard usa:
+PromQL is Prometheus's query language. For example, the dashboard uses:
 
 ```promql
 sum(rate(container_cpu_usage_seconds_total{id="/",cpu="total"}[5m]))
   / scalar(machine_cpu_cores) * 100
 ```
 
-La expresión estima el porcentaje de CPU del host a partir de una ventana de cinco minutos. También se consulta `up{job="cadvisor"}` para revisar el estado de un target. Las consultas completas están en [el dashboard versionado](./terraform/modules/monitoring/grafana/dashboards/streamforge-infrastructure.json).
+This estimates host CPU usage over a five-minute window. The dashboard also queries `up{job="cadvisor"}` to inspect target status. See the [versioned dashboard](./terraform/modules/monitoring/grafana/dashboards/streamforge-infrastructure.json) for the complete queries.
 
-## 6.2 Logs con Alloy y Loki
+## 6.2 Logs with Alloy and Loki
 
-Alloy descubre los logs de Docker y los etiqueta con el entorno y el contenedor. Su configuración filtra nombres de contenedor `dev_` o `pro_` y omite los propios contenedores de Alloy y Loki. Cada entorno conserva su propio Loki y sus dashboards filtran por entorno: los logs de DEV no deben aparecer en Grafana PRO, ni a la inversa.
+Alloy discovers Docker container logs and labels them with the environment and container. Its configuration filters container names by `dev_` or `pro_` and excludes Alloy and Loki themselves. Each environment has its own Loki, and its dashboards filter by environment: DEV logs should not appear in PRO Grafana, or vice versa.
 
-Estas reglas describen la configuración versionada. La separación efectiva en contenedores ya desplegados requiere aplicar los cambios y validar el resultado en runtime. Loki está configurado para aceptar entradas con hasta 72 horas de antigüedad.
+These statements describe the versioned configuration. Runtime isolation for already deployed containers requires applying the configuration and verifying it at runtime. Loki is configured to accept entries up to 72 hours old.
 
-LogQL permite seleccionar streams y filtrar sus líneas. El dashboard incluye, entre otras, estas consultas:
+LogQL selects log streams and filters their lines. The dashboard includes queries such as:
 
 ```logql
 {environment=~".+"}
@@ -367,62 +367,62 @@ LogQL permite seleccionar streams y filtrar sus líneas. El dashboard incluye, e
 {environment=~".+"} |= "[DASH]" !~ "caller="
 ```
 
-La etiqueta `environment` permite consultar los logs del datasource de cada entorno; los filtros por texto muestran errores o eventos del streaming DASH.
+The `environment` label selects streams for the environment's datasource; text filters show errors or DASH streaming events.
 
-## 6.3 Alertas y Telegram
+## 6.3 Alerts, Alertmanager, and Telegram
 
-Alertmanager, las reglas Prometheus y el envío a Telegram se despliegan únicamente en PRO. Las reglas cubren disponibilidad de servicios, estado de contenedores, targets y uso elevado de CPU o memoria. Los umbrales de recursos se parametrizan mediante variables Terraform.
+Alertmanager, Prometheus alert rules, and Telegram delivery are deployed only in PRO. Rules cover service availability, container state, scrape targets, and high CPU or memory usage. Resource thresholds are Terraform variables.
 
-Umbrales por defecto de PRO (se pueden parametrizar):
+PRO default thresholds (configurable):
 
-| Señal | Warning | Crítica |
+| Signal | Warning | Critical |
 |---|---:|---:|
-| CPU por contenedor | 80% durante 10 min | 95% durante 5 min |
-| Memoria por contenedor | 85% durante 10 min | 95% durante 5 min |
-| Uso del disco raíz del host | 85% durante 5 min | 95% durante 2 min |
+| CPU per container | 80% for 10 min | 95% for 5 min |
+| Memory per container | 85% for 10 min | 95% for 5 min |
+| Host root filesystem usage | 85% for 5 min | 95% for 2 min |
 
-El token se monta como fichero en el contenedor de Alertmanager; el chat ID se utiliza en la configuración generada. Configura ambos valores localmente en las variables de PRO y no los publiques. La presencia de Alertmanager no demuestra que Telegram haya recibido un mensaje: hay que realizar una prueba de entrega con acceso al chat configurado.
-
----
-
-# 7. Redes y políticas de acceso
-
-Terraform crea redes Docker separadas por entorno y asigna los servicios según su función:
-
-| Red | Propósito |
-|---|---|
-| `frontend` | Conectividad entre el balanceador y la aplicación Web. |
-| `backend` | Comunicación interna de la aplicación con MySQL y, en PRO, Redis; es una red interna. |
-| `monitoring` | Comunicación entre Prometheus, exporters, Alloy, Loki y Grafana dentro del entorno; es interna. |
-| `host_storage` | Bridge dedicado al contenedor MinIO para la publicación de sus puertos en el host; la aplicación se comunica con MinIO por `backend`. |
-| `host_monitoring` | Conecta Prometheus y Grafana a la interfaz publicada en el host para su acceso local. |
-
-Los nombres reales llevan prefijo de entorno (por ejemplo, `dev_` y `pro_`) para que las redes y los servicios no se mezclen. Los puertos publicados no sustituyen a la pertenencia a redes: cada servicio necesita estar en la red adecuada para comunicarse internamente. Las redes `backend` y `monitoring` restringen la conectividad externa mediante su configuración `internal`. `host_storage` y `host_monitoring` son bridges dedicados con masquerade desactivado; eso controla el NAT de salida del contenedor, no el acceso entrante desde el host. La exposición desde el host la determina el puerto publicado y su IP de bind (en MinIO, Prometheus y Grafana es `127.0.0.1`); la red por sí sola no identifica ni autoriza equipos concretos.
+The bot token is mounted as a file in Alertmanager; the chat ID is used in the generated configuration. Configure both locally for PRO and do not publish them. The presence of Alertmanager does not prove that Telegram received a message; verify delivery in the configured chat.
 
 ---
 
-# 8. Limitaciones y troubleshooting
+# 7. Networks and Access Policies
 
-## Limitaciones conocidas
+Terraform creates separate Docker networks for each environment and assigns services according to their roles:
 
-- No hay Docker Compose ni `.env.example`; el despliegue se configura mediante Terraform y variables locales.
-- No existe suite automatizada de tests unitarios/de integración de la aplicación.
-- Nginx Exporter no está implementado.
-- La entrega a Telegram requiere credenciales válidas y comprobación en el chat receptor.
-- DEV y PRO son deployments locales administrados por roots Terraform separados; no son entornos remotos con state compartido configurado aquí.
-- No hay un objetivo Make de parada que garantice conservar recursos; los objetivos `destroy` eliminan recursos y pueden afectar datos persistidos.
-- Node Exporter y cAdvisor exponen métricas del host y de Docker, respectivamente; revisa los mounts y permisos de Docker antes de desplegar en una máquina compartida.
-
-## Problemas habituales
-
-| Síntoma | Comprobación |
+| Network | Purpose |
 |---|---|
-| Terraform no puede conectar con Docker | Comprueba `docker info`, que Docker esté iniciado y que el usuario tenga permiso para acceder al daemon. |
-| Fallo en `terraform validate` por variables o ficheros | Comprueba que ejecutas el objetivo correcto y que el fichero local `dev.tfvars` o `pro.tfvars` tiene las variables requeridas con nombres y tipos correctos. |
-| Un puerto no está accesible | Comprueba los puertos de la tabla de [acceso por entorno](#15-diferencias-de-acceso-entre-entornos), que el contenedor esté en ejecución y que no exista otro proceso usando el puerto. |
-| Web no disponible | Consulta `docker ps` y los logs de `dev_load_balancer`/`pro_load_balancer` y de las réplicas Web correspondientes. |
-| Dashboard sin datos | Revisa que Prometheus tenga targets activos y que estás abriendo el Grafana del mismo entorno que el deployment consultado. |
-| No aparecen logs recientes | Comprueba los logs de Alloy y Loki del entorno y las etiquetas de entorno/contenedor en Grafana. |
-| No llega una alerta Telegram | Comprueba el token y chat ID locales de PRO, Alertmanager y el estado de la alerta; una alerta resuelta o no disparada no genera necesariamente una notificación nueva. |
+| `frontend` | Connectivity between the load balancer and Web application. |
+| `backend` | Internal application communication with MySQL and, in PRO, Redis; configured as an internal network. |
+| `monitoring` | Internal communication among Prometheus, exporters, Alloy, Loki, and Grafana. |
+| `host_storage` | Dedicated bridge for MinIO's published host ports; the application reaches MinIO over `backend`. |
+| `host_monitoring` | Connects Prometheus and Grafana to the host-access network for local access. |
 
-Comandos Make disponibles: `make help`. Para ver los comandos de demo, ejecuta `bash demo.sh` y consulta [DEMO-README.md](./DEMO-README.md).
+Actual network names have an environment prefix (for example, `dev_` and `pro_`) to keep the environments separate. Published ports do not replace network membership: services need the appropriate network to communicate internally. `backend` and `monitoring` restrict external connectivity through Docker's `internal` setting. `host_storage` and `host_monitoring` are dedicated bridges with masquerading disabled; that controls outbound NAT, not inbound access from the host. Published ports and their bind IP determine host exposure (MinIO, Prometheus, and Grafana bind to `127.0.0.1`); a Docker network by itself does not identify or authorize specific machines.
+
+---
+
+# 8. Limitations and Troubleshooting
+
+## Known Limitations
+
+- Docker Compose and `.env.example` are not present; deployment uses Terraform and local variables.
+- There is no automated application unit or integration test suite.
+- Nginx Exporter is not implemented.
+- Telegram delivery requires valid credentials and confirmation in the receiving chat.
+- DEV and PRO are local deployments managed by separate Terraform roots; no remote shared state is configured here.
+- There is no Make target that guarantees a stop while preserving resources; `destroy` targets can affect persisted data.
+- Node Exporter and cAdvisor expose host and Docker metrics respectively; review their mounts and Docker permissions before deploying on a shared machine.
+
+## Common Issues
+
+| Symptom | Check |
+|---|---|
+| Terraform cannot connect to Docker | Check `docker info`, ensure Docker is running, and confirm the user can access the daemon. |
+| `terraform validate` fails due to variables or files | Check the selected target and ensure the local `dev.tfvars` or `pro.tfvars` contains the required names and types. |
+| A port is inaccessible | Check the [environment access table](#15-environment-access-urls), container status, and whether another process is already using the port. |
+| Web application is unavailable | Check `docker ps` and logs for `dev_load_balancer`/`pro_load_balancer` and the relevant Web replicas. |
+| Dashboard has no data | Check Prometheus targets and ensure you opened Grafana for the same environment as the deployment being queried. |
+| Recent logs are missing | Check the environment's Alloy and Loki logs and the environment/container labels in Grafana. |
+| Telegram alert is not received | Check PRO's local token and chat ID, Alertmanager, and whether the alert fired; a resolved or non-firing alert may not produce a new notification. |
+
+Run `make help` for available Make targets. Run `bash demo.sh` and consult [DEMO-README.md](./DEMO-README.md) for demo options.

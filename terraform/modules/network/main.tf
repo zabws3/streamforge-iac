@@ -29,15 +29,11 @@ resource "docker_network" "host_storage" {
   }
 }
 
-# Mismo criterio para las interfaces administrativas de monitoring: solo los
-# contenedores conectados aquí pueden usar esta red para los puertos publicados.
 resource "docker_network" "host_monitoring" {
   name     = "${var.environment}_host_monitoring"
   internal = false
 
   options = {
-    # Evita masquerading/NAT para tráfico saliente; la exposición de Prometheus
-    # y Grafana se limita separadamente enlazando sus puertos a 127.0.0.1.
     "com.docker.network.bridge.enable_ip_masquerade" = "false"
   }
 }

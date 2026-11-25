@@ -5,8 +5,10 @@
 
 TF_DIR := terraform/environments/dev
 TF_VAR_FILE := dev.tfvars
+PRO_TF_DIR := terraform/environments/pro
+PRO_TF_VAR_FILE := pro.tfvars
 
-.PHONY: help setup dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart
+.PHONY: help setup dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart pro-init pro-validate pro-plan pro-up pro-deploy pro-destroy pro-output pro-ps
 
 help:
 	@echo ""
@@ -26,6 +28,14 @@ help:
 	@echo " make lb-logs       Logs Load Balancer"
 	@echo " make grafana-logs  Logs Grafana"
 	@echo " make dev-restart   Destruir y reconstruir DEV"
+	@echo " make pro-init      Inicializar Terraform PRO"
+	@echo " make pro-validate  Validar configuracion PRO"
+	@echo " make pro-plan      Mostrar plan PRO"
+	@echo " make pro-up        Inicializar y aplicar PRO"
+	@echo " make pro-deploy    Generar plan y aplicar PRO"
+	@echo " make pro-destroy   Destruir PRO"
+	@echo " make pro-output    Mostrar outputs PRO"
+	@echo " make pro-ps        Ver contenedores PRO"
 	@echo ""
 
 dev-init:
@@ -76,3 +86,30 @@ grafana-logs:
 dev-restart:
 	terraform -chdir=$(TF_DIR) destroy -var-file=$(TF_VAR_FILE)
 	terraform -chdir=$(TF_DIR) apply -var-file=$(TF_VAR_FILE)
+
+pro-init:
+	terraform -chdir=$(PRO_TF_DIR) init
+
+pro-validate:
+	terraform -chdir=$(PRO_TF_DIR) validate
+
+pro-plan:
+	terraform -chdir=$(PRO_TF_DIR) plan -var-file=$(PRO_TF_VAR_FILE)
+
+pro-up:
+	terraform -chdir=$(PRO_TF_DIR) init
+	terraform -chdir=$(PRO_TF_DIR) apply -var-file=$(PRO_TF_VAR_FILE)
+
+pro-deploy:
+	terraform -chdir=$(PRO_TF_DIR) init
+	terraform -chdir=$(PRO_TF_DIR) plan -var-file=$(PRO_TF_VAR_FILE) -out=tfplan
+	terraform -chdir=$(PRO_TF_DIR) apply tfplan
+
+pro-destroy:
+	terraform -chdir=$(PRO_TF_DIR) destroy -var-file=$(PRO_TF_VAR_FILE)
+
+pro-output:
+	terraform -chdir=$(PRO_TF_DIR) output
+
+pro-ps:
+	docker ps -a --filter name=pro_ --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
