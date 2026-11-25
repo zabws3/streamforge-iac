@@ -14,19 +14,6 @@ variable "host_access_network" {
   type = string
 }
 
-variable "web_containers" {
-  type = list(string)
-}
-
-variable "cache_enabled" {
-  type = bool
-}
-
-variable "probe_networks" {
-  type    = list(string)
-  default = []
-}
-
 variable "alert_rules_path" {
   description = "Optional path to the alert rules file managed by the alerts module."
   type        = string

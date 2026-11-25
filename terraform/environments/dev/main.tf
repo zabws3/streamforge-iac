@@ -92,21 +92,10 @@ module "load_balancer" {
 module "monitoring" {
   source = "../../modules/monitoring"
 
-  environment = var.environment
-  networks    = ["${var.environment}_monitoring"]
-  probe_networks = [
-    "${var.environment}_frontend",
-    "${var.environment}_backend"
-  ]
+  environment         = var.environment
+  networks            = ["${var.environment}_monitoring"]
   grafana_networks    = ["${var.environment}_monitoring"]
   host_access_network = "${var.environment}_host_monitoring"
-
-  web_containers = [
-    "${var.environment}_web_1",
-    "${var.environment}_web_2"
-  ]
-
-  cache_enabled = false
 
   grafana_port           = 3001
   grafana_admin_password = var.grafana_password

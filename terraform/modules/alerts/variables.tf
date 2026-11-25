@@ -77,23 +77,3 @@ variable "memory_critical_threshold" {
     error_message = "Memory critical threshold must be greater than 0 and at most 100."
   }
 }
-
-variable "disk_warning_threshold" {
-  type    = number
-  default = 85
-
-  validation {
-    condition     = var.disk_warning_threshold > 0 && var.disk_warning_threshold <= 100
-    error_message = "Disk warning threshold must be greater than 0 and at most 100."
-  }
-}
-
-variable "disk_critical_threshold" {
-  type    = number
-  default = 95
-
-  validation {
-    condition     = var.disk_critical_threshold > 0 && var.disk_critical_threshold <= 100
-    error_message = "Disk critical threshold must be greater than 0 and at most 100."
-  }
-}

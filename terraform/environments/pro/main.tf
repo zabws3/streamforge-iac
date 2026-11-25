@@ -134,33 +134,19 @@ module "alerts" {
   cpu_critical_threshold    = var.alert_cpu_critical_threshold
   memory_warning_threshold  = var.alert_memory_warning_threshold
   memory_critical_threshold = var.alert_memory_critical_threshold
-  disk_warning_threshold    = var.alert_disk_warning_threshold
-  disk_critical_threshold   = var.alert_disk_critical_threshold
-
-  depends_on = [module.network]
+  depends_on                = [module.network]
 }
 
 module "monitoring" {
   source = "../../modules/monitoring"
 
-  environment = var.environment
-  networks    = ["${var.environment}_monitoring"]
-  probe_networks = [
-    "${var.environment}_frontend",
-    "${var.environment}_backend"
-  ]
+  environment         = var.environment
+  networks            = ["${var.environment}_monitoring"]
   grafana_networks    = ["${var.environment}_monitoring"]
   host_access_network = "${var.environment}_host_monitoring"
   alert_rules_path    = module.alerts.alert_rules_path
   alertmanager_target = module.alerts.alertmanager_target
 
-  web_containers = [
-    "${var.environment}_web_1",
-    "${var.environment}_web_2",
-    "${var.environment}_web_3"
-  ]
-
-  cache_enabled          = true
   grafana_port           = 3002
   prometheus_port        = 9091
   grafana_admin_password = var.grafana_password

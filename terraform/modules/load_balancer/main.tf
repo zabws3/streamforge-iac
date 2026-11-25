@@ -7,8 +7,19 @@ resource "local_file" "nginx_config" {
   file_permission      = "0644"
   directory_permission = "0755"
   content              = <<-EOF
+    map $http_cookie $streamforge_session_lookup {
+      default "";
+      "~(?:^|; *)streamforge\.sid=([^;]+)" $1;
+    }
+
+    map $upstream_http_set_cookie $streamforge_session_create {
+      default "";
+      "~streamforge\.sid=([^;]+)" $1;
+    }
+
     upstream streamforge {
       ${join("\n", [for container in var.web_containers : "server ${container}:3000;"])}
+      sticky learn create=$streamforge_session_create lookup=$streamforge_session_lookup zone=streamforge_${var.environment}_sessions:1m timeout=8h;
     }
 
     server {
@@ -53,5 +64,9 @@ resource "docker_container" "nginx" {
     type   = "bind"
     source = local_file.nginx_config.filename
     target = "/etc/nginx/conf.d/default.conf"
+  }
+
+  lifecycle {
+    replace_triggered_by = [local_file.nginx_config]
   }
 }

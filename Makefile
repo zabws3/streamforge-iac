@@ -8,7 +8,7 @@ TF_VAR_FILE := dev.tfvars
 PRO_TF_DIR := terraform/environments/pro
 PRO_TF_VAR_FILE := pro.tfvars
 
-.PHONY: help setup dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart pro-init pro-validate pro-plan pro-up pro-deploy pro-destroy pro-output pro-ps
+.PHONY: help setup demo dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart pro-init pro-validate pro-plan pro-up pro-deploy pro-destroy pro-output pro-ps
 
 help:
 	@echo ""
@@ -20,6 +20,7 @@ help:
 	@echo " make dev-up         Levantar DEV"
 	@echo " make dev-deploy    Plan y aplicar cambios DEV"
 	@echo " make setup          Preparar infraestructura DEV y buckets MinIO"
+	@echo " make demo           Ejecutar demo interactiva de resiliencia"
 	@echo " make dev-destroy    Destruir DEV"
 	@echo " make dev-output     Mostrar outputs"
 	@echo " make dev-ps         Ver contenedores"
@@ -57,6 +58,9 @@ dev-deploy:
 	terraform -chdir=$(TF_DIR) apply tfplan
 
 setup: dev-up
+
+demo:
+	./demo.sh
 
 dev-destroy:
 	terraform -chdir=$(TF_DIR) destroy -var-file=$(TF_VAR_FILE)

@@ -36,7 +36,6 @@ terraform/environments/*/generated/
 # Runtime demo evidence
 demo-evidence/*
 !demo-evidence/.gitkeep
-demo.sh
 
 #Chunks content
 media/

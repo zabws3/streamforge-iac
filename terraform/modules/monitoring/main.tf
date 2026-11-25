@@ -1,44 +1,3 @@
-locals {
-  blackbox_probes = concat(
-    [
-      for container in var.web_containers : {
-        target    = "http://${container}:3000/health"
-        module    = "http_2xx"
-        service   = "streamforge-web"
-        container = container
-      }
-    ],
-    [
-      {
-        target    = "http://${var.environment}_load_balancer/health"
-        module    = "http_2xx"
-        service   = "streamforge-load-balancer"
-        container = "${var.environment}_load_balancer"
-      },
-      {
-        target    = "http://${var.environment}-minio:9000/minio/health/ready"
-        module    = "http_2xx"
-        service   = "minio"
-        container = "${var.environment}_minio"
-      },
-      {
-        target    = "${var.environment}_database:3306"
-        module    = "tcp_connect"
-        service   = "mysql"
-        container = "${var.environment}_database"
-      }
-    ],
-    var.cache_enabled ? [
-      {
-        target    = "${var.environment}_redis:6379"
-        module    = "tcp_connect"
-        service   = "redis"
-        container = "${var.environment}_redis"
-      }
-    ] : []
-  )
-}
-
 ############ PROMETHEUS ###################
 
 resource "local_file" "prometheus_config" {
@@ -47,17 +6,9 @@ resource "local_file" "prometheus_config" {
   directory_permission = "0755"
   content = templatefile("${path.module}/prometheus.yml.tftpl", {
     environment         = var.environment
-    probes              = local.blackbox_probes
     alerts_enabled      = var.alert_rules_path != ""
     alertmanager_target = var.alertmanager_target
   })
-}
-
-resource "local_file" "blackbox_config" {
-  filename             = abspath("${path.root}/generated/blackbox.yml")
-  file_permission      = "0644"
-  directory_permission = "0755"
-  content              = file("${path.module}/blackbox.yml")
 }
 
 resource "docker_image" "prometheus" {
@@ -126,10 +77,11 @@ resource "docker_container" "prometheus" {
     ip       = "127.0.0.1"
   }
 
-  depends_on = [
-    docker_container.blackbox_exporter,
-    docker_container.node_exporter
-  ]
+  lifecycle {
+    replace_triggered_by = [local_file.prometheus_config]
+  }
+
+  depends_on = [docker_container.cadvisor]
 }
 
 
@@ -151,7 +103,7 @@ resource "docker_container" "cadvisor" {
 
   command = [
     "--docker_only=true",
-    "--enable_metrics=cpu,memory,network",
+    "--enable_metrics=cpu,memory,network,oom_event,disk",
     "--housekeeping_interval=15s",
     "--store_container_labels=false"
   ]
@@ -194,77 +146,6 @@ resource "docker_container" "cadvisor" {
   }
 }
 
-################### BLACKBOX EXPORTER ###################
-resource "docker_image" "blackbox_exporter" {
-  name = "prom/blackbox-exporter:latest"
-}
-
-resource "docker_container" "blackbox_exporter" {
-  name          = "${var.environment}_blackbox_exporter"
-  image         = docker_image.blackbox_exporter.image_id
-  read_only     = true
-  security_opts = ["no-new-privileges:true"]
-
-  capabilities {
-    drop = ["ALL"]
-  }
-
-  command = ["--config.file=/etc/blackbox/blackbox.yml"]
-  restart = "unless-stopped"
-
-  mounts {
-    type      = "bind"
-    source    = local_file.blackbox_config.filename
-    target    = "/etc/blackbox/blackbox.yml"
-    read_only = true
-  }
-
-  dynamic "networks_advanced" {
-    for_each = distinct(concat(var.networks, var.probe_networks))
-    content {
-      name = networks_advanced.value
-    }
-  }
-}
-
-################### NODE EXPORTER ###################
-resource "docker_image" "node_exporter" {
-  name = "prom/node-exporter:latest"
-}
-
-resource "docker_container" "node_exporter" {
-  name          = "${var.environment}_node_exporter"
-  image         = docker_image.node_exporter.image_id
-  read_only     = true
-  security_opts = ["no-new-privileges:true"]
-
-  capabilities {
-    drop = ["ALL"]
-  }
-
-  command = [
-    "--path.rootfs=/host",
-    "--path.procfs=/host/proc",
-    "--path.sysfs=/host/sys",
-    "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/containers/storage/.+)($|/)"
-  ]
-  restart = "unless-stopped"
-
-  mounts {
-    type      = "bind"
-    source    = "/"
-    target    = "/host"
-    read_only = true
-  }
-
-  dynamic "networks_advanced" {
-    for_each = var.networks
-    content {
-      name = networks_advanced.value
-    }
-  }
-}
-
 ################### ALERTMANAGER ###################
 resource "docker_volume" "prometheus_data" {
   name = "${var.environment}_prometheus_data"
@@ -281,6 +162,13 @@ resource "docker_volume" "alloy_data" {
 ################### GRAFANA ###################
 resource "docker_image" "grafana" {
   name = var.grafana_image
+}
+
+resource "local_file" "grafana_dashboard" {
+  filename             = abspath("${path.root}/generated/grafana-dashboards/streamforge-infrastructure.json")
+  file_permission      = "0644"
+  directory_permission = "0755"
+  content              = replace(file("${path.module}/grafana/dashboards/streamforge-infrastructure.json"), "__ENVIRONMENT__", var.environment)
 }
 
 resource "docker_container" "grafana" {
@@ -345,7 +233,7 @@ resource "docker_container" "grafana" {
 
   mounts {
     type      = "bind"
-    source    = abspath("${path.module}/grafana/dashboards")
+    source    = abspath("${path.root}/generated/grafana-dashboards")
     target    = "/var/lib/grafana/dashboards"
     read_only = true
   }
@@ -354,6 +242,12 @@ resource "docker_container" "grafana" {
     volume_name    = docker_volume.grafana_data.name
     container_path = "/var/lib/grafana"
   }
+
+  lifecycle {
+    replace_triggered_by = [local_file.grafana_dashboard]
+  }
+
+  depends_on = [local_file.grafana_dashboard]
 }
 
 
@@ -366,6 +260,7 @@ apiVersion: 1
 
 datasources:
   - name: Prometheus
+    uid: PBFA97CFB590B2093
     type: prometheus
     access: proxy
     url: http://${var.environment}_prometheus:9090
@@ -505,6 +400,7 @@ apiVersion: 1
 
 datasources:
   - name: Loki
+    uid: P8E80F9AEF21F6940
     type: loki
     access: proxy
     url: http://${var.environment}_loki:3100

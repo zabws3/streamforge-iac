@@ -22,34 +22,6 @@ scrape_configs:
     static_configs:
       - targets: ["${environment}_cadvisor:8080"]
 
-  - job_name: node_exporter
-    static_configs:
-      - targets: ["${environment}_node_exporter:9100"]
-
-  - job_name: blackbox_exporter
-    static_configs:
-      - targets: ["${environment}_blackbox_exporter:9115"]
-
-  - job_name: blackbox
-    metrics_path: /probe
-    static_configs:
-%{ for probe in probes ~}
-      - targets: ["${probe.target}"]
-        labels:
-          module: "${probe.module}"
-          service: "${probe.service}"
-          container: "${probe.container}"
-%{ endfor ~}
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: __param_target
-      - source_labels: [module]
-        target_label: __param_module
-      - source_labels: [__param_target]
-        target_label: instance
-      - target_label: __address__
-        replacement: "${environment}_blackbox_exporter:9115"
-
 %{ if alerts_enabled ~}
   - job_name: alertmanager
     static_configs:

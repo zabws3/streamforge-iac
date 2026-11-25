@@ -82,13 +82,3 @@ variable "alert_memory_critical_threshold" {
   type    = number
   default = 95
 }
-
-variable "alert_disk_warning_threshold" {
-  type    = number
-  default = 85
-}
-
-variable "alert_disk_critical_threshold" {
-  type    = number
-  default = 95
-}

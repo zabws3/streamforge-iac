@@ -118,7 +118,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Containers with current cAdvisor samples; not a definitive Docker inventory or service health check.",
+      "description": "Containers with cAdvisor samples newer than 45 seconds; not a definitive Docker inventory or service health check.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -166,7 +166,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "count(container_last_seen{name!=\"\"})",
+          "expr": "count(container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"} and on (name) (time() - container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"} < 45))",
           "instant": true,
           "legendFormat": "Total containers",
           "range": false,
@@ -417,7 +417,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"${container:regex}\",name!=\"\",cpu=\"total\"}[5m])) / scalar(machine_cpu_cores) * 100",
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"^__ENVIRONMENT___.+\",name=~\"${container:regex}\",name!=\"\",cpu=\"total\"}[5m])) / scalar(machine_cpu_cores) * 100",
           "instant": false,
           "legendFormat": "{{name}}",
           "range": true,
@@ -645,7 +645,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max by (name) (container_memory_working_set_bytes{name=~\"${container:regex}\",name!=\"\"}) / 1000000000",
+          "expr": "max by (name) (container_memory_working_set_bytes{name=~\"^__ENVIRONMENT___.+\",name=~\"${container:regex}\",name!=\"\"}) / 1000000000",
           "instant": false,
           "legendFormat": "{{name}}",
           "range": true,
@@ -704,7 +704,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "topk(5, max by (name) (container_memory_working_set_bytes{name=~\"${container:regex}\",name!=\"\"}) / 1000000000)",
+          "expr": "topk(5, max by (name) (container_memory_working_set_bytes{name=~\"^__ENVIRONMENT___.+\",name=~\"${container:regex}\",name!=\"\"}) / 1000000000)",
           "instant": true,
           "legendFormat": "{{name}}",
           "range": false,
@@ -732,7 +732,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Only cAdvisor has a configured Docker healthcheck. -1 is mapped to UNKNOWN and must not be interpreted as healthy or down.",
+      "description": "Health state is shown only when cAdvisor data is fresh (under 45 seconds); stale samples map to UNKNOWN (-1), not healthy or down.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -796,7 +796,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max by (name) (container_health_state{name=~\"${container:regex}\",name!=\"\"})",
+          "expr": "(max by (name) (container_health_state{name=~\"^__ENVIRONMENT___.+\",name!=\"\"} and on (name) (time() - container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"} < 45))) or (-1 + max by (name) (0 * container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"} and on (name) (time() - container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"} >= 45)))",
           "format": "table",
           "instant": true,
           "legendFormat": "{{name}}",
@@ -835,7 +835,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "OOM events recorded by cAdvisor over the selected dashboard time range.",
+      "description": "OOM counts for this environment. When no OOM samples exist, show zero for containers currently reported by cAdvisor; this requires the cAdvisor OOM collector.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -869,7 +869,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (name) (increase(container_oom_events_total{name=~\"${container:regex}\",name!=\"\"}[$__range]))",
+          "expr": "sum by (name) (increase(container_oom_events_total{name=~\"^__ENVIRONMENT___.+\",name!=\"\"}[$__range])) or on (name) (0 * max by (name) (container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"}))",
           "instant": false,
           "legendFormat": "{{name}}",
           "range": true,
@@ -1085,7 +1085,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Current HTTP/TCP probe result for each configured service endpoint. A value of 1 is reachable; 0 is failing.",
+      "description": "Fresh Docker healthcheck status: 1=healthy, 0=unhealthy, -1=unknown/stale. These are in-container checks, not external network probes.",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -1107,15 +1107,15 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "probe_success{job=\"blackbox\"}",
+          "expr": "(container_health_state{name=~\"^__ENVIRONMENT___(web_[0-9]+|load_balancer|minio|database|redis)$\"} and on (name) (time() - container_last_seen{name=~\"^__ENVIRONMENT___(web_[0-9]+|load_balancer|minio|database|redis)$\"} < 45)) or (-1 + max by (name) (0 * container_last_seen{name=~\"^__ENVIRONMENT___(web_[0-9]+|load_balancer|minio|database|redis)$\"} and on (name) (time() - container_last_seen{name=~\"^__ENVIRONMENT___(web_[0-9]+|load_balancer|minio|database|redis)$\"} >= 45)))",
           "format": "table",
           "instant": true,
-          "legendFormat": "{{service}} — {{container}}",
+          "legendFormat": "{{name}}",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Service probe status",
+      "title": "Service Docker healthchecks",
       "type": "table"
     },
     {
@@ -1136,7 +1136,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Number of Web replicas whose direct HTTP health probe is currently successful.",
+      "description": "Web replicas whose Docker HTTP /health check is healthy and whose cAdvisor sample is newer than 45 seconds. This does not test reachability from outside the container.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1188,7 +1188,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(probe_success{job=\"blackbox\",service=\"streamforge-web\"})",
+          "expr": "sum((container_health_state{name=~\"^__ENVIRONMENT___web_[0-9]+$\"} == 1) and on (name) (time() - container_last_seen{name=~\"^__ENVIRONMENT___web_[0-9]+$\"} < 45)) or vector(0)",
           "instant": true,
           "legendFormat": "Available Web replicas",
           "range": false,
@@ -1203,7 +1203,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Host root filesystem usage, collected by Node Exporter.",
+      "description": "Per-container filesystem usage as a percentage of cAdvisor's reported container filesystem limit. This is not host root filesystem usage/free space, and mounted Docker volumes may not be included.",
       "fieldConfig": {
         "defaults": {
           "min": 0,
@@ -1250,14 +1250,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "(1 - node_filesystem_avail_bytes{job=\"node_exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{job=\"node_exporter\",mountpoint=\"/\",fstype!~\"tmpfs|overlay\"}) * 100",
+          "expr": "100 * sum by (name) (container_fs_usage_bytes{name=~\"^__ENVIRONMENT___.+\",name=~\"${container:regex}\",name!=\"\"}) / on (name) sum by (name) (container_fs_limit_bytes{name=~\"^__ENVIRONMENT___.+\",name=~\"${container:regex}\",name!=\"\"} > 0)",
           "instant": true,
-          "legendFormat": "Host root disk used",
+          "legendFormat": "{{name}}",
           "range": false,
           "refId": "A"
         }
       ],
-      "title": "Host disk used",
+      "title": "Container filesystem limit used",
       "type": "gauge"
     }
   ],
@@ -1266,7 +1266,8 @@
   "tags": [
     "streamforge",
     "infrastructure",
-    "docker"
+    "docker",
+    "environment-scoped"
   ],
   "templating": {
     "list": [
@@ -1281,7 +1282,7 @@
           "type": "prometheus",
           "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(container_last_seen{name!=\"\"}, name)",
+        "definition": "label_values(container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"}, name)",
         "hide": 0,
         "includeAll": true,
         "label": "Container",
@@ -1289,7 +1290,7 @@
         "name": "container",
         "options": [],
         "query": {
-          "query": "label_values(container_last_seen{name!=\"\"}, name)",
+          "query": "label_values(container_last_seen{name=~\"^__ENVIRONMENT___.+\",name!=\"\"}, name)",
           "refId": "Prometheus"
         },
         "refresh": 1,

@@ -110,13 +110,17 @@ docker logs --tail 100 dev_load_balancer
 docker logs --tail 100 pro_load_balancer
 ```
 
-The included operational demo is configured for PRO:
+The interactive Docker demo includes PRO Web failover and load-balancer checks,
+plus a DEV MySQL-volume persistence check:
 
 ```bash
-bash demo.sh
+./demo.sh
 ```
 
-Its menu includes checks and scenarios; some options generate load, restart services, or send a test alert. Read each confirmation prompt before selecting an option. See [DEMO-README.md](./DEMO-README.md) for additional information.
+The failover test affects only the local/isolated PRO lab and the persistence
+test briefly restarts DEV MySQL. Read each confirmation prompt before
+proceeding. See [DEMO-README.md](./DEMO-README.md) for the exact behavior and
+safety details.
 
 There is no Make target that stops the environment while explicitly preserving its containers. To stop the containers without destroying them:
 
@@ -151,16 +155,16 @@ Run `make help` to display the targets. `init` initializes a root, `validate` va
 | Database | Relational application data. | MySQL |
 | Cache | Cache and session storage, enabled in PRO. | Redis |
 | Media storage | S3-compatible API, console, and video objects. | MinIO |
-| Metrics collection | Collects service and exporter metrics. | Prometheus |
+| Metrics collection | Scrapes cAdvisor and evaluates Prometheus rules. | Prometheus |
 | Dashboard | Queries metrics and logs. | Grafana |
 | Container metrics | Docker container usage and state. | cAdvisor |
-| Host metrics | System metrics, including disk usage. | Node Exporter |
-| Availability probes | Checks HTTP endpoints and network connections. | Blackbox Exporter |
+| Container filesystem metrics | Per-container filesystem usage and limits; not host-root capacity. | cAdvisor |
+| Service health | Docker healthchecks reported through cAdvisor; not external reachability probes. | Docker, cAdvisor |
 | Log agent | Discovers and labels logs for its environment. | Grafana Alloy |
 | Log storage | Receives and queries logs. | Loki |
 | Alerts and notifications | Evaluates rules and routes Telegram notifications; PRO only. | Prometheus, Alertmanager |
 
-Nginx Exporter is not implemented. The environment roots define the deployed services; the main differences are summarized in [the environment access table](#15-environment-access-urls).
+Nginx request and upstream metrics are not collected. The environment roots define the deployed services; the main differences are summarized in [the environment access table](#15-environment-access-urls).
 
 ## 2.2 Overall Architecture
 
@@ -184,8 +188,6 @@ flowchart LR
 
     subgraph Observability["Environment monitoring networks"]
         P[Prometheus] --> CA[cAdvisor]
-        P --> NE[Node Exporter]
-        P --> BB[Blackbox Exporter]
         P -->|PRO alerts| AM[Alertmanager]
         A[Alloy] --> L[Loki]
         G[Grafana] --> P
@@ -201,7 +203,7 @@ flowchart LR
     U -.->|localhost| P
 ```
 
-Users access the application through the load balancer. Web replicas share MySQL and MinIO; PRO adds Redis and a third replica. Prometheus scrapes exporters and uses Blackbox probes. Alloy sends labeled logs to Loki; Grafana queries Prometheus and Loki. PRO alerts are routed from Alertmanager to Telegram.
+Users access the application through the load balancer. Web replicas share MySQL and MinIO; PRO adds Redis and a third replica. Prometheus scrapes itself, cAdvisor, and Alertmanager in PRO. cAdvisor supplies container resource, filesystem, and Docker healthcheck metrics. Alloy sends labeled logs to Loki; Grafana queries Prometheus and Loki. PRO alerts are routed from Alertmanager to Telegram.
 
 ## 2.3 Terraform Structure
 
@@ -340,9 +342,9 @@ Docker volumes survive normal container stops. Destroying or removing a volume m
 
 ## 6.1 Metrics and Dashboards
 
-Prometheus collects metrics from cAdvisor and Node Exporter and runs availability probes through Blackbox Exporter, along with the other targets defined per environment. Blackbox probes HTTP and TCP availability; it does not replace resource-metric exporters. Grafana includes an infrastructure dashboard for container and host metrics.
+Prometheus collects cAdvisor metrics and scrapes itself; PRO also scrapes Alertmanager. cAdvisor reports container CPU, memory, network, OOM, healthcheck, and (with its disk collector enabled) per-container filesystem metrics. Docker healthchecks run inside their containers; they do not prove external HTTP/TCP reachability or measure probe latency. The filesystem metrics describe container filesystems, not total host root filesystem usage/free space, so host-disk alerting is not available from this configuration.
 
-Grafana queries the Prometheus and Loki instance for its own environment. Grafana and Prometheus ports bind to `127.0.0.1`, limiting their published access to the local host by default. Nginx Exporter is not implemented.
+Grafana queries the Prometheus and Loki instance for its own environment. Grafana and Prometheus ports bind to `127.0.0.1`, limiting their published access to the local host by default. Nginx request and upstream metrics are not collected.
 
 PromQL is Prometheus's query language. For example, the dashboard uses:
 
@@ -357,7 +359,7 @@ This estimates host CPU usage over a five-minute window. The dashboard also quer
 
 Alloy discovers Docker container logs and labels them with the environment and container. Its configuration filters container names by `dev_` or `pro_` and excludes Alloy and Loki themselves. Each environment has its own Loki, and its dashboards filter by environment: DEV logs should not appear in PRO Grafana, or vice versa.
 
-These statements describe the versioned configuration. Runtime isolation for already deployed containers requires applying the configuration and verifying it at runtime. Loki is configured to accept entries up to 72 hours old.
+These statements describe the versioned configuration. Runtime changes require applying the Terraform configuration and verifying it at runtime. Loki is configured to accept entries up to 72 hours old.
 
 LogQL selects log streams and filters their lines. The dashboard includes queries such as:
 
@@ -379,7 +381,8 @@ PRO default thresholds (configurable):
 |---|---:|---:|
 | CPU per container | 80% for 10 min | 95% for 5 min |
 | Memory per container | 85% for 10 min | 95% for 5 min |
-| Host root filesystem usage | 85% for 5 min | 95% for 2 min |
+
+Service availability alerts use cAdvisor's Docker healthcheck state and container presence/freshness. A `container_last_seen` sample older than 45 seconds is treated as stale; alert `for` durations still apply after that threshold. These signals do not replace external HTTP/TCP probes. Host root filesystem thresholds were removed because cAdvisor's per-container filesystem usage/limit metrics do not measure total host disk capacity or free space.
 
 The bot token is mounted as a file in Alertmanager; the chat ID is used in the generated configuration. Configure both locally for PRO and do not publish them. The presence of Alertmanager does not prove that Telegram received a message; verify delivery in the configured chat.
 
@@ -393,7 +396,7 @@ Terraform creates separate Docker networks for each environment and assigns serv
 |---|---|
 | `frontend` | Connectivity between the load balancer and Web application. |
 | `backend` | Internal application communication with MySQL and, in PRO, Redis; configured as an internal network. |
-| `monitoring` | Internal communication among Prometheus, exporters, Alloy, Loki, and Grafana. |
+| `monitoring` | Internal communication among Prometheus, cAdvisor, Alloy, Loki, and Grafana. |
 | `host_storage` | Dedicated bridge for MinIO's published host ports; the application reaches MinIO over `backend`. |
 | `host_monitoring` | Connects Prometheus and Grafana to the host-access network for local access. |
 
@@ -407,11 +410,11 @@ Actual network names have an environment prefix (for example, `dev_` and `pro_`)
 
 - Docker Compose and `.env.example` are not present; deployment uses Terraform and local variables.
 - There is no automated application unit or integration test suite.
-- Nginx Exporter is not implemented.
+- Nginx request and upstream metrics are not collected.
 - Telegram delivery requires valid credentials and confirmation in the receiving chat.
 - DEV and PRO are local deployments managed by separate Terraform roots; no remote shared state is configured here.
 - There is no Make target that guarantees a stop while preserving resources; `destroy` targets can affect persisted data.
-- Node Exporter and cAdvisor expose host and Docker metrics respectively; review their mounts and Docker permissions before deploying on a shared machine.
+- cAdvisor reads Docker runtime data and exposes container metrics; review its Docker socket and host mounts before deploying on a shared machine. Its per-container filesystem metrics do not replace host root filesystem monitoring.
 
 ## Common Issues
 

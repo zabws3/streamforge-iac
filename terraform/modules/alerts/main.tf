@@ -10,8 +10,6 @@ resource "local_file" "alert_rules" {
     cpu_critical_threshold    = var.cpu_critical_threshold
     memory_warning_threshold  = var.memory_warning_threshold
     memory_critical_threshold = var.memory_critical_threshold
-    disk_warning_threshold    = var.disk_warning_threshold
-    disk_critical_threshold   = var.disk_critical_threshold
   })
 }
 

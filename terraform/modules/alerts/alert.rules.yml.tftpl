@@ -4,30 +4,39 @@ groups:
     rules:
 %{ for container in web_containers ~}
       - alert: WebContainerMissing
-        expr: absent(container_last_seen{name="${container}"}) and on() (up{job="cadvisor"} == 1)
-        for: 2m
+        expr: |
+          (
+            absent(container_last_seen{name="${container}"})
+            or
+            (time() - container_last_seen{name="${container}"} > 20)
+          )
+          and on() (max(up{job="cadvisor"}) == 1)
+        for: 15s
         labels:
           severity: critical
           service: streamforge-web
           container: "${container}"
         annotations:
           summary: "Web container ${container} is missing"
-          description: "cAdvisor has not reported ${container} for at least 2 minutes."
+          description: "cAdvisor has not detected ${container} for more than 20 seconds."
           action: "Check the Docker container status and logs."
 %{ endfor ~}
+%{ for container in web_containers ~}
       - alert: WebInstanceUnreachable
-        expr: probe_success{job="blackbox", service="streamforge-web"} == 0
+        expr: (container_health_state{name="${container}"} == 0 and on(name) (time() - container_last_seen{name="${container}"} < 45)) and on() (up{job="cadvisor"} == 1)
         for: 2m
         labels:
           severity: critical
           service: streamforge-web
+          container: "${container}"
         annotations:
-          summary: "A StreamForge Web instance is unreachable"
-          description: "HTTP health probe failed for {{ $labels.container }} ({{ $labels.instance }})."
+          summary: "A StreamForge Web instance is unhealthy"
+          description: "Docker reports the configured HTTP healthcheck for ${container} as unhealthy."
           action: "Check the Web container healthcheck, dependencies, and logs."
+%{ endfor ~}
 
       - alert: DockerContainerUnhealthy
-        expr: container_health_state{name=~"${environment}_.*"} == 0
+        expr: (container_health_state{name=~"${environment}_.*"} == 0 and on(name) (time() - container_last_seen{name=~"${environment}_.*"} < 45)) and on() (up{job="cadvisor"} == 1)
         for: 1m
         labels:
           severity: critical
@@ -38,59 +47,96 @@ groups:
           action: "Inspect the container healthcheck output and recent logs."
 
       - alert: AllWebReplicasDown
-        expr: sum(probe_success{job="blackbox", service="streamforge-web"}) == 0
+        expr: |
+          (
+            sum(
+              (container_health_state{name=~"^${environment}_web_[0-9]+$"} == 1)
+              and on(name) (time() - container_last_seen{name=~"^${environment}_web_[0-9]+$"} < 45)
+            )
+            or vector(0)
+          )
+          == 0
+          and on() (up{job="cadvisor"} == 1)
         for: 1m
         labels:
           severity: critical
           service: streamforge-web
         annotations:
           summary: "All StreamForge Web replicas are unavailable"
-          description: "No Web replica is responding to its HTTP health probe."
+          description: "No Web replica has a healthy Docker HTTP healthcheck."
           action: "Check the configured Web replicas, their dependencies, and the load balancer."
 
       - alert: LoadBalancerUnreachable
-        expr: probe_success{job="blackbox", service="streamforge-load-balancer"} == 0
+        expr: |
+          (
+            container_health_state{name="${environment}_load_balancer"} == 0
+            or time() - container_last_seen{name="${environment}_load_balancer"} > 45
+            or absent(container_last_seen{name="${environment}_load_balancer"})
+          )
+          and on() (up{job="cadvisor"} == 1)
         for: 2m
         labels:
           severity: critical
           service: streamforge-load-balancer
+          container: "${environment}_load_balancer"
         annotations:
-          summary: "Nginx Load Balancer is unreachable"
-          description: "The HTTP health probe to the StreamForge load balancer failed."
+          summary: "Nginx Load Balancer is unhealthy"
+          description: "The Docker healthcheck for ${environment}_load_balancer failed or the container is missing."
           action: "Check ${environment}_load_balancer and its upstream configuration."
 
       - alert: MinIODown
-        expr: probe_success{job="blackbox", service="minio"} == 0
+        expr: |
+          (
+            container_health_state{name="${environment}_minio"} == 0
+            or time() - container_last_seen{name="${environment}_minio"} > 45
+            or absent(container_last_seen{name="${environment}_minio"})
+          )
+          and on() (up{job="cadvisor"} == 1)
         for: 2m
         labels:
           severity: critical
           service: minio
+          container: "${environment}_minio"
         annotations:
           summary: "MinIO/Silo is unavailable"
-          description: "The MinIO readiness endpoint did not return HTTP 2xx."
+          description: "The Docker readiness healthcheck for ${environment}_minio failed or the container is missing."
           action: "Check ${environment}_minio and its logs; verify the storage volume is healthy."
 
       - alert: MySQLDown
-        expr: probe_success{job="blackbox", service="mysql"} == 0
+        expr: |
+          (
+            container_health_state{name="${environment}_database"} == 0
+            or time() - container_last_seen{name="${environment}_database"} > 45
+            or absent(container_last_seen{name="${environment}_database"})
+          )
+          and on() (up{job="cadvisor"} == 1)
         for: 2m
         labels:
           severity: critical
           service: mysql
+          container: "${environment}_database"
         annotations:
           summary: "MySQL is unavailable"
-          description: "The TCP connection probe to MySQL failed."
+          description: "The Docker SQL healthcheck for ${environment}_database failed or the container is missing."
           action: "Check ${environment}_database and its logs."
 
 %{ if cache_enabled ~}
       - alert: RedisDown
-        expr: probe_success{job="blackbox", service="redis"} == 0
+        expr: |
+          (
+            container_health_state{name="${environment}_redis"} == 0
+            or time() - container_last_seen{name="${environment}_redis"} > 45
+            or absent(container_last_seen{name="${environment}_redis"})
+          )
+          and on() (up{job="cadvisor"} == 1)
         for: 2m
         labels:
           severity: critical
           service: redis
+          container: "${environment}_redis"
         annotations:
           summary: "Redis is unavailable"
-          description: "The TCP connection probe to Redis failed."
+          description: "The Docker PING healthcheck for ${environment}_redis failed or the container is missing."
           action: "Check ${environment}_redis and its logs."
 %{ endif ~}
 
@@ -104,28 +150,6 @@ groups:
           summary: "cAdvisor metrics target is down"
           description: "Prometheus cannot scrape the cAdvisor target."
           action: "Check ${environment}_cadvisor and Prometheus scrape logs."
-
-      - alert: BlackboxExporterDown
-        expr: up{job="blackbox_exporter"} == 0
-        for: 2m
-        labels:
-          severity: critical
-          service: blackbox-exporter
-        annotations:
-          summary: "Blackbox Exporter is down"
-          description: "Prometheus cannot scrape Blackbox Exporter."
-          action: "Check ${environment}_blackbox_exporter; service reachability probes are unavailable."
-
-      - alert: NodeExporterDown
-        expr: up{job="node_exporter"} == 0
-        for: 2m
-        labels:
-          severity: critical
-          service: node-exporter
-        annotations:
-          summary: "Node Exporter is down"
-          description: "Prometheus cannot collect host disk metrics."
-          action: "Check ${environment}_node_exporter and its host filesystem mount."
 
       - alert: AlertmanagerDown
         expr: up{job="alertmanager"} == 0
@@ -201,35 +225,3 @@ groups:
           description: "{{ $labels.name }} is using more than ${memory_critical_threshold}% of total host RAM for 5 minutes."
           value: '{{ printf "%.1f%%" $value }}'
           action: "Investigate memory pressure immediately."
-
-      - alert: HostDiskUsageWarning
-        expr: |
-          (
-            1 - node_filesystem_avail_bytes{job="node_exporter", mountpoint="/", fstype!~"tmpfs|overlay"}
-            / node_filesystem_size_bytes{job="node_exporter", mountpoint="/", fstype!~"tmpfs|overlay"}
-          ) * 100 > ${disk_warning_threshold}
-        for: 5m
-        labels:
-          severity: warning
-          service: host-disk
-        annotations:
-          summary: "Host disk usage exceeds ${disk_warning_threshold}%"
-          description: "The root filesystem is more than ${disk_warning_threshold}% full."
-          value: '{{ printf "%.1f%%" $value }}'
-          action: "Free disk space or expand the host filesystem."
-
-      - alert: HostDiskUsageCritical
-        expr: |
-          (
-            1 - node_filesystem_avail_bytes{job="node_exporter", mountpoint="/", fstype!~"tmpfs|overlay"}
-            / node_filesystem_size_bytes{job="node_exporter", mountpoint="/", fstype!~"tmpfs|overlay"}
-          ) * 100 > ${disk_critical_threshold}
-        for: 2m
-        labels:
-          severity: critical
-          service: host-disk
-        annotations:
-          summary: "Host disk usage exceeds ${disk_critical_threshold}%"
-          description: "The root filesystem is more than ${disk_critical_threshold}% full."
-          value: '{{ printf "%.1f%%" $value }}'
-          action: "Free disk space urgently to avoid service failures."
