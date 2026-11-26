@@ -3,102 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080d17">
     <title>Administración | StreamForge</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script src="/js/auth.js" defer></script>
     <script src="/js/admin.js" defer></script>
 </head>
-<body>
-    <header class="navbar">
-        <a class="logo" href="/">STREAMFORGE</a>
-        <nav>
-            <a href="/">Catálogo</a>
-            <a href="/admin.html">Administración</a>
-        </nav>
+<body class="admin-page-shell">
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/" aria-label="StreamForge, inicio">
+                <span class="brand-mark" aria-hidden="true">SF</span>
+                <span class="brand-name">STREAM<span>FORGE</span></span>
+            </a>
+
+            <nav class="primary-nav" aria-label="Navegación principal">
+                <a class="nav-link" href="/">Catálogo</a>
+                <a class="nav-link" href="/admin.html" aria-current="page">Administración</a>
+            </nav>
+
+            <div class="header-actions">
+                <a class="login-link" href="/login.html">Iniciar sesión</a>
+            </div>
+        </div>
     </header>
 
     <main class="admin-page">
-        <section class="admin-heading">
+        <div class="admin-heading">
             <div>
-                <p class="admin-eyebrow">STREAMFORGE / CONTROL</p>
-                <h1>Administración de vídeos</h1>
-                <p>Gestiona el catálogo, los manifiestos y las portadas.</p>
+                <p class="eyebrow">STREAMFORGE <span class="breadcrumb-divider">/</span> CONTROL</p>
+                <h1>Biblioteca de vídeos</h1>
+                <p class="page-description">Gestiona el catálogo, los manifiestos y las portadas.</p>
             </div>
-            <button id="newVideoButton" type="button">+ Añadir vídeo</button>
-        </section>
+            <button id="newVideoButton" class="button button-primary" type="button">
+                <span aria-hidden="true">＋</span> Añadir vídeo
+            </button>
+        </div>
 
-        <p id="adminMessage" role="status" aria-live="polite"></p>
+        <p id="adminMessage" class="feedback-banner" role="status" aria-live="polite"></p>
 
-        <section class="admin-panel">
-            <div class="admin-toolbar">
-                <h2>Biblioteca</h2>
-                <input id="videoSearch" type="search"
-                       placeholder="Buscar por título..." aria-label="Buscar vídeos">
+        <section class="admin-panel" aria-labelledby="library-title">
+            <div class="panel-heading">
+                <div>
+                    <p class="panel-kicker">CONTENIDO</p>
+                    <h2 id="library-title">Biblioteca</h2>
+                </div>
+                <label class="admin-search" for="videoSearch">
+                    <span class="search-icon" aria-hidden="true">⌕</span>
+                    <input id="videoSearch" type="search"
+                           placeholder="Buscar por título...">
+                </label>
             </div>
 
             <div class="admin-table-wrapper">
                 <table class="admin-table">
+                    <caption class="sr-only">Vídeos registrados en StreamForge</caption>
                     <thead>
                         <tr>
-                            <th>Portada</th>
-                            <th>Título</th>
-                            <th>Categoría</th>
-                            <th>Duración</th>
-                            <th>Manifiesto MPD</th>
-                            <th>Acciones</th>
+                            <th scope="col">Portada</th>
+                            <th scope="col">Título</th>
+                            <th scope="col">Categoría</th>
+                            <th scope="col">Duración</th>
+                            <th scope="col">Manifiesto MPD</th>
+                            <th scope="col">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="videoTableBody">
-                        <tr><td colspan="6">Cargando vídeos...</td></tr>
+                        <tr class="table-message-row"><td colspan="6">Cargando vídeos...</td></tr>
                     </tbody>
                 </table>
             </div>
         </section>
 
-        <section id="videoFormSection" class="admin-panel admin-form-panel" hidden>
-            <div class="admin-toolbar">
-                <h2 id="formTitle">Añadir vídeo</h2>
-                <button id="cancelFormButton" type="button" class="secondary-button">
-                    Cancelar
-                </button>
+        <section id="videoFormSection" class="admin-panel admin-form-panel"
+                 aria-labelledby="formTitle" hidden>
+            <div class="panel-heading form-panel-heading">
+                <div>
+                    <p class="panel-kicker">DETALLES DEL CONTENIDO</p>
+                    <h2 id="formTitle">Añadir vídeo</h2>
+                </div>
+                <button id="cancelFormButton" class="button button-secondary"
+                        type="button">Cancelar</button>
             </div>
 
             <form id="videoForm">
                 <input id="videoId" type="hidden">
 
                 <div class="admin-form-grid">
-                    <label>
-                        Título *
-                        <input id="title" name="title" type="text" maxlength="200" required>
+                    <label class="form-field">
+                        <span>Título <span class="required-mark">*</span></span>
+                        <input id="title" name="title" type="text"
+                               maxlength="200" autocomplete="off" required>
                     </label>
 
-                    <label>
-                        Duración (segundos) *
-                        <input id="durationSeconds" name="durationSeconds"
-                               type="number" min="1" step="1" required>
+                    <label class="form-field">
+                        <span>Duración <span class="required-mark">*</span></span>
+                        <div class="input-with-suffix">
+                            <input id="durationSeconds" name="durationSeconds"
+                                   type="number" min="1" step="1" required>
+                            <span>segundos</span>
+                        </div>
                     </label>
 
-                    <label class="admin-full-width">
-                        Descripción
+                    <label class="form-field admin-full-width">
+                        <span>Descripción</span>
                         <textarea id="description" name="description"
                                   maxlength="20000" rows="4"></textarea>
                     </label>
 
-                    <label>
-                        URL de la portada
+                    <label class="form-field">
+                        <span>URL de la portada</span>
                         <input id="thumbnailUrl" name="thumbnailUrl" type="url"
                                maxlength="500" placeholder="https://ejemplo.com/portada.jpg">
                     </label>
 
-                    <label>
-                        Categoría
+                    <label class="form-field">
+                        <span>Categoría</span>
                         <select id="categoryId" name="categoryId">
                             <option value="">Sin categoría</option>
                         </select>
                     </label>
 
-                    <label id="minioVideoField" class="admin-full-width" hidden>
-                        Vídeo almacenado en MinIO
+                    <label id="minioVideoField" class="form-field admin-full-width" hidden>
+                        <span>Vídeo almacenado en MinIO</span>
                         <select id="minioVideoSelect" name="minioVideo">
                             <option value="">Cargando vídeos disponibles...</option>
                         </select>
@@ -107,8 +134,8 @@
                         </small>
                     </label>
 
-                    <label class="admin-full-width">
-                        Ruta relativa del manifiesto MPD *
+                    <label class="form-field admin-full-width">
+                        <span>Ruta relativa del manifiesto MPD <span class="required-mark">*</span></span>
                         <input id="mpdPath" name="mpdPath" type="text" maxlength="500"
                                placeholder="Cortometraje/manifest.mpd" required>
                         <small>
@@ -117,17 +144,23 @@
                         </small>
                     </label>
 
-                    <div class="admin-full-width">
-                        <p class="admin-preview-label">Vista previa de portada</p>
-                        <img id="thumbnailPreview" class="admin-thumbnail-preview"
-                             alt="Vista previa de la portada" hidden>
+                    <div class="form-field admin-full-width">
+                        <span class="admin-preview-label">Vista previa de portada</span>
+                        <div class="thumbnail-preview-frame">
+                            <img id="thumbnailPreview" class="admin-thumbnail-preview"
+                                 alt="Vista previa de la portada" hidden>
+                            <span class="thumbnail-placeholder" aria-hidden="true">SF</span>
+                        </div>
                     </div>
                 </div>
 
                 <div class="admin-form-actions">
-                    <button id="saveVideoButton" type="submit">Guardar vídeo</button>
-                    <button id="resetFormButton" type="button"
-                            class="secondary-button">Limpiar</button>
+                    <button id="saveVideoButton" class="button button-primary" type="submit">
+                        Guardar vídeo
+                    </button>
+                    <button id="resetFormButton" class="button button-secondary" type="button">
+                        Limpiar
+                    </button>
                 </div>
             </form>
         </section>

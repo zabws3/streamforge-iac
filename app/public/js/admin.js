@@ -6,6 +6,8 @@ const videoForm = document.getElementById("videoForm");
 const minioVideoField = document.getElementById("minioVideoField");
 const minioVideoSelect = document.getElementById("minioVideoSelect");
 const minioVideoStatus = document.getElementById("minioVideoStatus");
+const thumbnailPreviewFrame = document.querySelector(".thumbnail-preview-frame");
+const thumbnailPlaceholder = document.querySelector(".thumbnail-placeholder");
 
 const fields = {
     id: document.getElementById("videoId"),
@@ -18,6 +20,10 @@ const fields = {
 };
 
 const thumbnailPreview = document.getElementById("thumbnailPreview");
+thumbnailPreview.addEventListener("error", () => {
+    thumbnailPreview.hidden = true;
+    thumbnailPlaceholder.hidden = false;
+});
 
 let videos = [];
 let categories = [];
@@ -83,9 +89,10 @@ function getCategoryName(categoryId) {
     return category ? category.name : (categoryId ?? "—");
 }
 
-function createCell(text) {
+function createCell(text, label) {
     const cell = document.createElement("td");
     cell.textContent = text ?? "—";
+    cell.dataset.label = label;
     return cell;
 }
 
@@ -100,8 +107,10 @@ function renderVideos() {
 
     if (filteredVideos.length === 0) {
         const row = document.createElement("tr");
+        row.className = "table-message-row";
         const cell = createCell(
-            search ? "No hay resultados para esa búsqueda." : "Todavía no hay vídeos."
+            search ? "No hay resultados para esa búsqueda." : "Todavía no hay vídeos.",
+            "Estado"
         );
         cell.colSpan = 6;
         row.appendChild(cell);
@@ -113,6 +122,7 @@ function renderVideos() {
         const row = document.createElement("tr");
 
         const imageCell = document.createElement("td");
+        imageCell.dataset.label = "Portada";
         if (video.thumbnailUrl) {
             const image = document.createElement("img");
             image.src = video.thumbnailUrl;
@@ -126,13 +136,15 @@ function renderVideos() {
         }
 
         row.appendChild(imageCell);
-        row.appendChild(createCell(video.title));
-        row.appendChild(createCell(getCategoryName(video.categoryId)));
-        row.appendChild(createCell(formatDuration(video.durationSeconds)));
-        row.appendChild(createCell(video.mpdPath));
+        row.appendChild(createCell(video.title, "Título"));
+        row.appendChild(createCell(getCategoryName(video.categoryId), "Categoría"));
+        row.appendChild(createCell(formatDuration(video.durationSeconds), "Duración"));
+        row.appendChild(createCell(video.mpdPath, "Manifiesto MPD"));
 
         const actionsCell = document.createElement("td");
-        actionsCell.className = "admin-actions";
+        actionsCell.dataset.label = "Acciones";
+        const actions = document.createElement("div");
+        actions.className = "admin-actions";
 
         const editButton = document.createElement("button");
         editButton.type = "button";
@@ -146,7 +158,8 @@ function renderVideos() {
         deleteButton.className = "danger-button";
         deleteButton.addEventListener("click", () => deleteVideo(video));
 
-        actionsCell.append(editButton, deleteButton);
+        actions.append(editButton, deleteButton);
+        actionsCell.appendChild(actions);
         row.appendChild(actionsCell);
         tableBody.appendChild(row);
     }
@@ -194,6 +207,7 @@ function resetForm() {
     minioVideoSelect.value = "";
     thumbnailPreview.removeAttribute("src");
     thumbnailPreview.hidden = true;
+    thumbnailPlaceholder.hidden = false;
     document.getElementById("formTitle").textContent = "Añadir vídeo";
     document.getElementById("saveVideoButton").textContent = "Guardar vídeo";
 }
@@ -292,6 +306,7 @@ function updateThumbnailPreview() {
     if (!url) {
         thumbnailPreview.removeAttribute("src");
         thumbnailPreview.hidden = true;
+        thumbnailPlaceholder.hidden = false;
         return;
     }
 
@@ -303,10 +318,12 @@ function updateThumbnailPreview() {
         }
 
         thumbnailPreview.hidden = false;
+        thumbnailPlaceholder.hidden = true;
         thumbnailPreview.src = parsedUrl.href;
     } catch {
         thumbnailPreview.removeAttribute("src");
         thumbnailPreview.hidden = true;
+        thumbnailPlaceholder.hidden = false;
     }
 }
 

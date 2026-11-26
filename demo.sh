@@ -10,8 +10,6 @@ readonly PRO_PROMETHEUS="pro_prometheus"
 readonly PRO_ALERTMANAGER="pro_alertmanager"
 readonly DEV_DB="dev_database"
 readonly DEV_VOLUME="dev_mysql_data"
-readonly ALERT_WAIT_TIMEOUT="${STREAMFORGE_ALERT_TIMEOUT:-300}"
-readonly ALERT_POLL_INTERVAL="${STREAMFORGE_ALERT_POLL_INTERVAL:-5}"
 
 web_restore_needed=0
 db_restore_needed=0
@@ -64,6 +62,12 @@ require_docker() {
         fail "Docker no está disponible. Comprueba que el daemon esté iniciado y accesible."
         return 1
     fi
+}
+
+pause_enter() {
+    printf '\n%s\n' "$1"
+    printf 'Pulsa ENTER para continuar... '
+    read -r _
 }
 
 confirm() {
@@ -439,12 +443,6 @@ demo_pro_recovery() {
     require_command curl
     require_command python3
     require_docker
-    if [[ ! "$ALERT_WAIT_TIMEOUT" =~ ^[1-9][0-9]*$ ]] ||
-        [[ ! "$ALERT_POLL_INTERVAL" =~ ^[1-9][0-9]*$ ]]; then
-        fail "STREAMFORGE_ALERT_TIMEOUT y STREAMFORGE_ALERT_POLL_INTERVAL deben ser enteros positivos."
-        return 1
-    fi
-
     check_running_healthy "$PRO_WEB"
     for peer in "${PRO_WEB_PEERS[@]}"; do
         check_running_healthy "$peer"
@@ -489,7 +487,7 @@ demo_pro_recovery() {
     fi
     pass "Docker, las tres Web, Load Balancer, Prometheus y Alertmanager están operativos."
 
-    if ! confirm "La demo enviará solicitudes reales a PRO y detendrá $PRO_WEB con docker stop --time 5 hasta confirmar WebInstanceUnreachable y una notificación Telegram; timeout: ${ALERT_WAIT_TIMEOUT}s. Si la regla activa no dispara, se restaurará automáticamente y el resultado será incompleto. Solo continuar en PRO local/aislado, nunca en producción compartida."; then
+    if ! confirm "La demo enviará solicitudes reales a PRO y detendrá $PRO_WEB con docker stop --time 5 hasta confirmar WebInstanceUnreachable y una notificación Telegram. La comprobación de FIRING/Telegram será manual con ENTER. Si la regla activa no dispara, se restaurará automáticamente y el resultado será incompleto. Solo continuar en PRO local/aislado, nunca en producción compartida."; then
         info "Prueba cancelada; no se modificó ningún contenedor."
         return 0
     fi
@@ -572,6 +570,7 @@ demo_pro_recovery() {
         return 1
     fi
 
+    pause_enter "FASE 3 — Preparado para simular la caída de $PRO_WEB. El siguiente paso lo detendrá."
     info "FASE 3 — Simulando caída de $PRO_WEB"
     printf '\n================================================\n'
     printf 'SIMULANDO CAÍDA DE %s\n' "$PRO_WEB"
@@ -594,6 +593,7 @@ demo_pro_recovery() {
         pro_demo_failed=1
     fi
 
+    pause_enter "FASE 4 — $PRO_WEB está detenida. Pulsa ENTER para probar el failover con 20 solicitudes."
     info "FASE 4 — Failover del Load Balancer (20 solicitudes)"
     if sample_lb_requests "FAILOVER" 20 pro_demo_failover_counts pro_demo_failover_http_errors pro_demo_failover_violations "$PRO_WEB"; then
         if (( pro_demo_failover_counts[${PRO_WEB_PEERS[0]}] > 0 &&
@@ -608,27 +608,21 @@ demo_pro_recovery() {
         pass "El Load Balancer sigue atendiendo sin $PRO_WEB."
     fi
 
-    info "FASE 5 — Esperando Prometheus Firing y notificación Telegram (timeout ${ALERT_WAIT_TIMEOUT}s)"
-    local deadline=$((SECONDS + ALERT_WAIT_TIMEOUT))
-    local last_state="" notification_after total_after failed_after active_alerts_after
-    local next_progress=$((SECONDS + 30))
-    while (( SECONDS < deadline )); do
+    info "FASE 5 — Comprobación manual de Prometheus Firing y Telegram"
+    while true; do
+        pause_enter "Abre Prometheus/Alertmanager, verifica WebInstanceUnreachable y Telegram. Cuando quieras que el script compruebe el estado,"
+        local state notification_after total_after failed_after active_alerts_after
         if ! state="$(prometheus_web_alert_state)"; then
             fail "No se pudo consultar la alerta WebInstanceUnreachable."
             pro_demo_failed=1
             break
         fi
         pro_demo_alert_state="$state"
-        if [[ "$state" != "$last_state" ]]; then
-            printf '[ALERT] WebInstanceUnreachable -> %s\n' "$state"
-            last_state="$state"
-        fi
+        printf '[ALERT] WebInstanceUnreachable -> %s\n' "$state"
         if [[ "$state" == "firing" ]]; then
             pro_demo_alert_fired=1
             if alertmanager_has_web_alert; then
-                if (( !pro_demo_alertmanager_received )); then
-                    info "Alertmanager registró WebInstanceUnreachable para $PRO_WEB."
-                fi
+                info "Alertmanager registró WebInstanceUnreachable para $PRO_WEB."
                 pro_demo_alertmanager_received=1
                 if active_alerts_after="$(alertmanager_active_alert_count)" &&
                     [[ "$active_alerts_after" == "1" ]] &&
@@ -645,19 +639,26 @@ demo_pro_recovery() {
                         pro_demo_telegram_confirmed=1
                         info "El contador Telegram aumentó en $pro_demo_telegram_delta sin fallos."
                         break
+                    else
+                        warn "La alerta está FIRING, pero todavía no se confirma un nuevo envío Telegram."
                     fi
+                else
+                    warn "Prometheus está FIRING, pero no se pudo confirmar Alertmanager/Telegram aún."
                 fi
+            else
+                warn "Prometheus está FIRING, pero Alertmanager aún no muestra la alerta."
             fi
+        else
+            warn "La alerta todavía no está FIRING."
         fi
-        if (( SECONDS >= next_progress )); then
-            info "Esperando Firing y confirmación Telegram; quedan $((deadline - SECONDS))s."
-            next_progress=$((SECONDS + 30))
+        if ! confirm "¿Quieres volver a comprobar (S) o salir de esta comprobación (otra tecla)?"; then
+            pro_demo_failed=1
+            break
         fi
-        sleep "$ALERT_POLL_INTERVAL"
     done
 
     if (( !pro_demo_alert_fired )); then
-        fail "Prometheus no activó WebInstanceUnreachable para $PRO_WEB dentro de ${ALERT_WAIT_TIMEOUT}s."
+        fail "No se confirmó WebInstanceUnreachable en estado FIRING para $PRO_WEB."
         pro_demo_failed=1
     fi
     if (( pro_demo_alert_fired && !pro_demo_alertmanager_received )); then
@@ -665,13 +666,14 @@ demo_pro_recovery() {
         pro_demo_failed=1
     fi
     if (( pro_demo_alert_fired && pro_demo_alertmanager_received && !pro_demo_telegram_confirmed )); then
-        fail "No se confirmó un envío Telegram exitoso dentro de ${ALERT_WAIT_TIMEOUT}s."
+        fail "No se confirmó un envío Telegram exitoso durante la comprobación manual."
         pro_demo_failed=1
     fi
 
     printf '\n================================================\n'
     printf 'RECUPERANDO %s\n' "$PRO_WEB"
     printf '================================================\n'
+    pause_enter "FASE 6 — Pulsa ENTER para iniciar la recuperación de $PRO_WEB."
     info "FASE 6 — Recovery automático"
     info "Esperando healthcheck..."
     if restore_pro_web; then
@@ -685,6 +687,7 @@ demo_pro_recovery() {
         pro_demo_failed=1
     fi
 
+    pause_enter "FASE 7 — $PRO_WEB está healthy. Pulsa ENTER para comprobar el tráfico tras la recuperación."
     info "FASE 7 — Tráfico después del recovery (30 solicitudes)"
     if (( pro_demo_recovery_healthy )); then
         if sample_lb_requests "RECOVERY" 30 pro_demo_post_counts pro_demo_post_http_errors pro_demo_post_violations; then

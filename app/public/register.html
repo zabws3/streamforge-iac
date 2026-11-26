@@ -3,40 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080d17">
     <title>StreamForge | Crear cuenta</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script src="/js/auth.js" defer></script>
 </head>
 <body class="auth-page">
-    <main class="auth-card">
-        <a class="logo auth-logo" href="/">STREAM<span>FORGE</span></a>
-        <p class="eyebrow">ÚNETE A STREAMFORGE</p>
-        <h1>Crear cuenta</h1>
-        <p class="auth-subtitle">Regístrate para acceder a tus vídeos favoritos.</p>
+    <main class="auth-layout">
+        <section class="auth-story" aria-label="StreamForge">
+            <a class="brand" href="/" aria-label="StreamForge, inicio">
+                <span class="brand-mark" aria-hidden="true">SF</span>
+                <span class="brand-name">STREAM<span>FORGE</span></span>
+            </a>
+            <div class="auth-story-copy">
+                <p class="eyebrow"><span class="eyebrow-mark"></span> TU ESPACIO DE STREAMING</p>
+                <h2>Descubre algo <span>que te mueva.</span></h2>
+                <p>Crea tu cuenta y encuentra tu próxima reproducción favorita.</p>
+                <div class="auth-feature">
+                    <span class="auth-feature-icon" aria-hidden="true">▶</span>
+                    <span><strong>Reproducción adaptativa</strong><small>Impulsada por MPEG-DASH</small></span>
+                </div>
+            </div>
+            <p class="auth-aside-note">STREAMFORGE <span>·</span> VIDEO PLATFORM</p>
+        </section>
 
-        <form id="registerForm">
-            <label for="username">Nombre de usuario</label>
-            <input id="username" name="username" type="text"
-                   autocomplete="username" minlength="2" maxlength="40"
-                   placeholder="Tu nombre" required>
+        <section class="auth-card" aria-labelledby="register-title">
+            <div class="auth-card-top">
+                <span class="auth-kicker">CREA TU CUENTA</span>
+                <a class="auth-back" href="/">Volver al catálogo</a>
+            </div>
+            <p class="eyebrow">ÚNETE A STREAMFORGE</p>
+            <h1 id="register-title">Crear cuenta</h1>
+            <p class="auth-subtitle">Unos datos y ya estás dentro.</p>
 
-            <label for="email">Correo electrónico</label>
-            <input id="email" name="email" type="email"
-                   autocomplete="email" placeholder="tu@email.com" required>
+            <form id="registerForm">
+                <label class="form-field" for="username">
+                    <span>Nombre de usuario</span>
+                    <input id="username" name="username" type="text"
+                           autocomplete="username" minlength="2" maxlength="40"
+                           placeholder="Tu nombre" required>
+                </label>
 
-            <label for="password">Contraseña</label>
-            <input id="password" name="password" type="password"
-                   autocomplete="new-password" minlength="8"
-                   placeholder="Mínimo 8 caracteres" required>
+                <label class="form-field" for="email">
+                    <span>Correo electrónico</span>
+                    <input id="email" name="email" type="email"
+                           autocomplete="email" placeholder="tu@email.com" required>
+                </label>
 
-            <p id="formMessage" class="form-message" role="alert"></p>
-            <button class="primary-button auth-submit" type="submit">Crear cuenta</button>
-        </form>
+                <label class="form-field" for="password">
+                    <span>Contraseña</span>
+                    <input id="password" name="password" type="password"
+                           autocomplete="new-password" minlength="8"
+                           placeholder="Mínimo 8 caracteres" required>
+                </label>
 
-        <p class="auth-switch">¿Ya tienes cuenta?
-            <a href="/login.html">Inicia sesión</a>
-        </p>
-        <a class="back-link" href="/">← Volver al catálogo</a>
+                <p id="formMessage" class="form-message" role="alert" aria-live="polite"></p>
+                <button class="button button-primary auth-submit" type="submit">Crear cuenta</button>
+            </form>
+
+            <p class="auth-switch">¿Ya tienes cuenta?
+                <a href="/login.html">Inicia sesión</a>
+            </p>
+            <p class="auth-legal">Al crear una cuenta, podrás acceder a tus vídeos en StreamForge.</p>
+        </section>
     </main>
 </body>
 </html>

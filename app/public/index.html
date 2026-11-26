@@ -3,93 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080d17">
     <title>StreamForge | Catálogo</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script src="/js/catalog.js" defer></script>
     <script src="/js/auth.js" defer></script>
     <script src="/js/instance.js" defer></script>
+    <script src="/js/health.js" defer></script>
 </head>
+<body class="catalog-page">
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/" aria-label="StreamForge, inicio">
+                <span class="brand-mark" aria-hidden="true">SF</span>
+                <span class="brand-name">STREAM<span>FORGE</span></span>
+            </a>
 
-<div id="system-health" class="health-widget">
-    <button id="health-toggle" class="health-toggle"
-            type="button" aria-expanded="false">
-        <span id="health-dot" class="health-dot"></span>
-        <span id="health-label">Estado del sistema</span>
-        <span aria-hidden="true">⌃</span>
-    </button>
+            <nav class="primary-nav" aria-label="Navegación principal">
+                <a class="nav-link" href="/" aria-current="page">Inicio</a>
+                <a class="nav-link" href="#catalogo">Películas</a>
+                <a class="nav-link" href="#catalogo">Mi catálogo</a>
+            </nav>
 
-    <div id="health-details" class="health-details" hidden>
-        <p>Aplicación <span id="health-app">Comprobando...</span></p>
-        <p>MySQL <span id="health-db">Comprobando...</span></p>
-        <p>Redis <span id="health-redis">Comprobando...</span></p>
-        <button id="health-refresh" type="button">Actualizar estado</button>
-    </div>
-</div>
+            <div class="header-actions">
+                <span class="instance-indicator" data-instance aria-live="polite">
+                    Atendiendo desde: consultando...
+                </span>
+                <a class="login-link" href="/login.html">Iniciar sesión</a>
 
-<script src="/js/health.js" defer></script>
+                <div id="system-health" class="health-widget">
+                    <button id="health-toggle" class="health-toggle"
+                            type="button" aria-expanded="false"
+                            aria-controls="health-details">
+                        <span id="health-dot" class="health-dot" data-state="checking"></span>
+                        <span id="health-label">Estado del sistema</span>
+                        <span class="health-chevron" aria-hidden="true">⌄</span>
+                    </button>
 
-
-<body>
-    <header class="navbar">
-        <a class="logo" href="/">STREAM<span>FORGE</span></a>
-
-        <nav>
-            <a class="active" href="/">Inicio</a>
-            <a href="#catalogo">Películas</a>
-            <a href="#catalogo">Mi catálogo</a>
-        </nav>
-
-        <div class="header-actions">
-            <span class="instance-indicator" data-instance aria-live="polite">
-                Atendiendo desde: consultando...
-            </span>
-            <form id="searchForm" class="search">
-                <input
-                    type="search"
-                    id="searchInput"
-                    placeholder="Buscar vídeos..."
-                    aria-label="Buscar vídeos"
-                >
-                <button type="submit" aria-label="Buscar">⌕</button>
-            </form>
-            <a class="login-link" href="/login.html">Iniciar sesión</a>
+                    <div id="health-details" class="health-details" hidden>
+                        <p><span>Aplicación</span><strong id="health-app" data-state="checking">Comprobando...</strong></p>
+                        <p><span>MySQL</span><strong id="health-db" data-state="checking">Comprobando...</strong></p>
+                        <p><span>Redis</span><strong id="health-redis" data-state="checking">Comprobando...</strong></p>
+                        <button id="health-refresh" class="button button-secondary"
+                                type="button">Actualizar estado</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </header>
 
     <main>
-        <section class="hero">
-            <div class="hero-content">
-                <p class="eyebrow">TU PLATAFORMA DE STREAMING</p>
-                <h1>Tu próximo vídeo<br>empieza aquí.</h1>
-                <p class="hero-description">
-                    Descubre contenido y disfruta de reproducción
-                    adaptativa con tecnología MPEG-DASH.
-                </p>
-                <a class="primary-button" href="#catalogo">Explorar catálogo</a>
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="hero-inner">
+                <div class="hero-copy">
+                    <p class="eyebrow"><span class="eyebrow-mark"></span> STREAMING, A TU MANERA</p>
+                    <h1 id="hero-title">Tu próxima historia<br><span>empieza aquí.</span></h1>
+                    <p class="hero-description">
+                        Explora el catálogo y disfruta de reproducción adaptativa
+                        con tecnología MPEG-DASH.
+                    </p>
+                    <div class="hero-actions">
+                        <a class="button button-primary" href="#catalogo">
+                            Explorar catálogo <span aria-hidden="true">→</span>
+                        </a>
+                    </div>
+                    <div class="hero-capabilities" aria-label="Características">
+                        <span><span class="capability-icon" aria-hidden="true">01</span> Reproducción adaptativa</span>
+                        <span><span class="capability-icon" aria-hidden="true">02</span> MPEG-DASH</span>
+                    </div>
+                </div>
+
+                <div class="hero-art" aria-hidden="true">
+                    <div class="hero-orbit hero-orbit-one"></div>
+                    <div class="hero-orbit hero-orbit-two"></div>
+                    <div class="playback-window">
+                        <div class="playback-topbar">
+                            <span class="playback-brand"><span>SF</span> STREAMFORGE</span>
+                            <span class="playback-indicator"><i></i> PLAYBACK</span>
+                        </div>
+                        <div class="playback-scene">
+                            <span class="scene-line scene-line-one"></span>
+                            <span class="scene-line scene-line-two"></span>
+                            <span class="scene-sun"></span>
+                            <span class="scene-horizon"></span>
+                            <span class="scene-play">▶</span>
+                        </div>
+                        <div class="playback-track"><span></span></div>
+                        <div class="playback-caption">
+                            <span>ADAPTIVE STREAMING</span>
+                            <span>MPEG-DASH</span>
+                        </div>
+                    </div>
+                    <div class="hero-art-label">
+                        <span class="art-label-mark" aria-hidden="true">↗</span>
+                        <span>Built for every screen</span>
+                    </div>
+                </div>
             </div>
-            <div class="hero-decoration" aria-hidden="true">SF</div>
+            <div class="hero-index" aria-hidden="true">SF / 01</div>
         </section>
 
-        <section class="catalog-section" id="catalogo">
-            <div class="section-heading">
-                <div>
+        <section class="catalog-section" id="catalogo" aria-labelledby="catalog-title">
+            <div class="catalog-heading">
+                <div class="section-title">
                     <p class="eyebrow">DESCUBRE CONTENIDO</p>
-                    <h2>Catálogo de vídeos</h2>
+                    <h2 id="catalog-title">Catálogo de vídeos</h2>
+                    <p class="section-description">Encuentra tu próxima reproducción.</p>
                 </div>
-                <span id="videoCount" class="video-count"></span>
+                <div class="catalog-tools">
+                    <span id="videoCount" class="video-count" aria-live="polite"></span>
+                    <form id="searchForm" class="search-form" role="search">
+                        <label class="sr-only" for="searchInput">Buscar vídeos</label>
+                        <span class="search-icon" aria-hidden="true">⌕</span>
+                        <input type="search" id="searchInput"
+                               placeholder="Buscar en el catálogo...">
+                        <button class="search-submit" type="submit" aria-label="Buscar vídeos">
+                            Buscar
+                        </button>
+                    </form>
+                </div>
             </div>
 
-            <p id="statusMessage" class="status-message">
+            <p id="statusMessage" class="status-message" role="status" aria-live="polite">
                 Cargando catálogo...
             </p>
-
             <div id="videoGrid" class="video-grid"></div>
         </section>
     </main>
 
-    <footer>
-        <a class="logo footer-logo" href="/">STREAM<span>FORGE</span></a>
-        <p>Proyecto de streaming adaptativo · MPEG-DASH</p>
+    <footer class="site-footer">
+        <a class="brand footer-brand" href="/" aria-label="StreamForge, inicio">
+            <span class="brand-mark" aria-hidden="true">SF</span>
+            <span class="brand-name">STREAM<span>FORGE</span></span>
+        </a>
+        <p>Plataforma de streaming adaptativo <span aria-hidden="true">·</span> MPEG-DASH</p>
+        <span class="footer-note">STREAMFORGE / VIDEO PLATFORM</span>
     </footer>
 </body>
 </html>

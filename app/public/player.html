@@ -3,46 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080d17">
     <title>Reproductor | StreamForge</title>
     <link rel="stylesheet" href="/css/styles.css">
-    <script src="https://cdn.dashjs.org/v4.7.4/dash.all.min.js"></script>
+    <script src="https://cdn.dashjs.org/v4.7.4/dash.all.min.js" defer></script>
     <script src="/js/auth.js" defer></script>
     <script src="/js/player.js" defer></script>
     <script src="/js/instance.js" defer></script>
 </head>
-<body>
-    <header class="navbar">
-        <a class="logo" href="/">STREAMFORGE</a>
-        <nav>
-            <a href="/">Inicio</a>
-            <a href="/">Catálogo</a>
-        </nav>
-        <span class="instance-indicator" data-instance aria-live="polite">
-            Atendiendo desde: consultando...
-        </span>
+<body class="player-body">
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="/" aria-label="StreamForge, inicio">
+                <span class="brand-mark" aria-hidden="true">SF</span>
+                <span class="brand-name">STREAM<span>FORGE</span></span>
+            </a>
+
+            <nav class="primary-nav" aria-label="Navegación principal">
+                <a class="nav-link" href="/">Inicio</a>
+                <a class="nav-link" href="/#catalogo">Catálogo</a>
+            </nav>
+
+            <div class="header-actions">
+                <span class="instance-indicator" data-instance aria-live="polite">
+                    Atendiendo desde: consultando...
+                </span>
+                <a class="login-link" href="/login.html">Iniciar sesión</a>
+            </div>
+        </div>
     </header>
 
     <main class="player-page">
-        <a class="back-link" href="/">← Volver al catálogo</a>
+        <a class="back-link" href="/"><span aria-hidden="true">←</span> Volver al catálogo</a>
 
-        <h1 id="videoTitle">Cargando vídeo...</h1>
-        <p id="videoDescription"></p>
+        <div class="player-heading">
+            <div>
+                <p class="eyebrow">STREAMFORGE <span class="breadcrumb-divider">/</span> REPRODUCTOR</p>
+                <h1 id="videoTitle">Cargando vídeo...</h1>
+                <p id="videoDescription" class="player-description"></p>
+            </div>
+            <span class="playback-badge"><span class="badge-dot"></span> MPEG-DASH</span>
+        </div>
 
-    <div class="player-container">
-        <video id="videoPlayer" controls autoplay playsinline></video>
-    </div>
+        <div class="player-container">
+            <video id="videoPlayer" controls autoplay playsinline
+                   aria-label="Reproductor de vídeo"></video>
+        </div>
 
-    <div class="player-quality">
-        <label for="qualitySelect">Calidad de reproducción</label>
-        <select id="qualitySelect" disabled>
-            <option value="auto">Automática</option>
-        </select>
-        <span id="qualityInfo">Detectando calidades...</span>
-    </div>
-
-    <p id="playerMessage" role="status">Preparando reproducción...</p>
-
-        <p id="playerMessage" role="status">Preparando reproducción...</p>
+        <section class="player-controls" aria-label="Opciones de reproducción">
+            <div class="player-quality">
+                <label for="qualitySelect">Calidad de reproducción</label>
+                <select id="qualitySelect" disabled>
+                    <option value="auto">Automática</option>
+                </select>
+                <span id="qualityInfo" aria-live="polite">Detectando calidades...</span>
+            </div>
+            <p id="playerMessage" class="player-message" role="status" aria-live="polite">
+                Preparando reproducción...
+            </p>
+        </section>
     </main>
 </body>
 </html>

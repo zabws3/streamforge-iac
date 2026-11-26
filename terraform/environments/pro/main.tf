@@ -85,7 +85,7 @@ module "web" {
 
     SESSION_SECRET   = var.session_secret
     COOKIE_SECURE    = "false"
-    SEED_DEMO_USERS  = "false"
+    SEED_DEMO_USERS  = "true"
     MINIO_ENDPOINT   = "http://${var.environment}-minio:9000"
     MINIO_ACCESS_KEY = var.minio_user
     MINIO_SECRET_KEY = var.minio_password

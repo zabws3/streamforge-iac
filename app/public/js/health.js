@@ -19,12 +19,12 @@ refresh.addEventListener("click", checkHealth);
 
 function setStatus(element, text, healthy) {
     element.textContent = text;
-    element.style.color = healthy ? "#62d99a" : "#e50914";
+    element.dataset.state = healthy ? "ok" : "error";
 }
 
 async function checkHealth() {
     label.textContent = "Comprobando...";
-    dot.style.background = "#aaa";
+    dot.dataset.state = "checking";
     refresh.disabled = true;
 
     try {
@@ -56,7 +56,7 @@ async function checkHealth() {
 
         if (!redisConfigured) {
             redisStatus.textContent = "No configurado";
-            redisStatus.style.color = "#aaa";
+            redisStatus.dataset.state = "neutral";
         } else {
             setStatus(
                 redisStatus,
@@ -74,12 +74,12 @@ async function checkHealth() {
             ? "Sistema operativo"
             : "Incidencia detectada";
 
-        dot.style.background = allHealthy ? "#62d99a" : "#e50914";
+        dot.dataset.state = allHealthy ? "ok" : "error";
     } catch (error) {
         console.error("Error consultando el estado del sistema:", error);
 
         label.textContent = "Sistema no disponible";
-        dot.style.background = "#e50914";
+        dot.dataset.state = "error";
 
         setStatus(appStatus, "Sin conexión", false);
         setStatus(dbStatus, "Sin comprobar", false);
