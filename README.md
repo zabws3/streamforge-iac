@@ -62,7 +62,8 @@ make dev-plan
 make dev-deploy
 ```
 
-`make dev-deploy` creates and applies a plan. `make dev-up` also applies, but does not provide the same explicit review step. `make setup` is an alias for `make dev-up`. DEV and PRO use independent Terraform roots and state.
+`make dev-deploy` initializes DEV, creates a plan, and applies that plan. DEV
+and PRO use independent Terraform roots and state.
 
 ## 1.4 Deploy PRO
 
@@ -76,7 +77,8 @@ make pro-plan
 make pro-deploy
 ```
 
-`make pro-deploy` creates and applies a plan. `make pro-up` initializes Terraform and applies directly. Alertmanager and alert rules are only deployed in PRO.
+`make pro-deploy` initializes PRO, creates a plan, and applies that plan.
+Alertmanager and alert rules are deployed only in PRO.
 
 ## 1.5 Environment access URLs
 
@@ -126,8 +128,9 @@ The interactive Docker demo has three operational functions:
    marker, and verifies that the marker survives using the named MySQL volume.
 
 Read each confirmation prompt before proceeding. The failover test is intended
-only for the local/isolated PRO lab. See [DEMO-README.md](./DEMO-README.md)
-for the exact behavior and safety details.
+only for the local/isolated PRO lab. The demo requires Bash, Docker CLI,
+`curl`, and Python 3. It does not deploy or destroy Terraform resources.
+Options 1 and 3 request confirmation before modifying container state.
 
 There is no Make target that stops the environment while explicitly preserving its containers. To stop the containers without destroying them:
 
@@ -140,21 +143,31 @@ This leaves containers and volumes in place, but Terraform may recreate resource
 
 ## 1.7 Available Make targets
 
-Run `make help` to display the targets. `init` initializes a root, `validate` validates its configuration, `plan` displays proposed changes, `up` applies directly, and `deploy` creates and applies a plan.
+Run `make help` to display the targets. `init` initializes a root, `validate`
+validates its configuration, `plan` displays proposed changes, and `deploy`
+creates and applies a saved plan.
 
 | Group | Targets |
 |---|---|
-| DEV | `dev-init`, `dev-validate`, `dev-plan`, `dev-up`, `dev-deploy`, `dev-destroy`, `dev-output`, `dev-ps`, `dev-logs`, `web-logs`, `lb-logs`, `grafana-logs`, `dev-restart`, `setup` |
-| PRO | `pro-init`, `pro-validate`, `pro-plan`, `pro-up`, `pro-deploy`, `pro-destroy`, `pro-output`, `pro-ps` |
+| DEV | `dev-init`, `dev-validate`, `dev-plan`, `dev-deploy`, `dev-destroy`, `dev-output`, `dev-ps`, `dev-logs`, `web-logs`, `lb-logs`, `grafana-logs`, `dev-restart` |
+| PRO | `pro-init`, `pro-validate`, `pro-plan`, `pro-deploy`, `pro-destroy`, `pro-output`, `pro-ps` |
 | All environments | `destroyall`, `demo`, `help` |
+| Complete setup | `setup` |
 
-`dev-ps` lists all containers visible to Docker; `pro-ps` filters names beginning with `pro_`. `dev-logs` reads Web, load balancer, MySQL, and Redis logs, although Redis is not deployed in DEV, so that target can fail at its Redis command. `web-logs`, `lb-logs`, and `grafana-logs` follow DEV container logs. `dev-restart` destroys and reapplies DEV; it is not a stop-only operation.
+`dev-ps` lists all containers visible to Docker; `pro-ps` filters names
+beginning with `pro_`. `dev-logs` reads Web, load-balancer, and MySQL logs.
+`web-logs`, `lb-logs`, and `grafana-logs` follow DEV container logs.
+`dev-restart` destroys and reapplies DEV; it is not a stop-only operation.
 
 `destroyall` first kills every running Docker container, removes all Docker
 containers, and then destroys the DEV and PRO Terraform roots in that order.
 This is destructive and can remove resources and persisted state. It does not
 ask for a Terraform confirmation because both roots are destroyed with
 `-auto-approve`.
+
+`setup` deploys DEV and PRO through `dev-deploy` and `pro-deploy`, then starts
+the interactive `demo.sh` menu. It applies the saved Terraform plans without
+an additional confirmation, so it should be used only in the local lab.
 
 ---
 
@@ -249,7 +262,6 @@ Users access the application through the load balancer. Web replicas share MySQL
 │       ├── network/
 │       ├── storage/
 │       └── web/
-├── DEMO-README.md
 ├── AUDITORIA-TECNICA-STREAMFORGE-P2.md
 ├── Makefile
 ├── README.md
@@ -498,4 +510,5 @@ Actual network names have an environment prefix (for example, `dev_` and `pro_`)
 | Recent logs are missing | Check the environment's Alloy and Loki logs and the environment/container labels in Grafana. |
 | Telegram alert is not received | Check PRO's local token and chat ID, Alertmanager, and whether the alert fired; a resolved or non-firing alert may not produce a new notification. |
 
-Run `make help` for available Make targets. Run `bash demo.sh` and consult [DEMO-README.md](./DEMO-README.md) for demo options.
+Run `make help` for available Make targets or `bash demo.sh` to run the three
+demo functions described in this document.

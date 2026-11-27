@@ -8,7 +8,7 @@ TF_VAR_FILE := dev.tfvars
 PRO_TF_DIR := terraform/environments/pro
 PRO_TF_VAR_FILE := pro.tfvars
 
-.PHONY: help setup demo dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart pro-init pro-validate pro-plan pro-up pro-deploy pro-destroy pro-output pro-ps destroyall
+.PHONY: help setup demo dev-init dev-validate dev-plan dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart pro-init pro-validate pro-plan pro-deploy pro-destroy pro-output pro-ps destroyall
 
 help:
 	@echo ""
@@ -17,9 +17,8 @@ help:
 	@echo " make dev-init       Inicializar Terraform"
 	@echo " make dev-validate   Validar configuracion"
 	@echo " make dev-plan       Mostrar plan"
-	@echo " make dev-up         Levantar DEV"
 	@echo " make dev-deploy    Plan y aplicar cambios DEV"
-	@echo " make setup          Preparar infraestructura DEV y buckets MinIO"
+	@echo " make setup          Desplegar DEV y PRO y ejecutar la demo"
 	@echo " make demo           Ejecutar demo interactiva de resiliencia"
 	@echo " make dev-destroy    Destruir DEV"
 	@echo " make dev-output     Mostrar outputs"
@@ -32,7 +31,6 @@ help:
 	@echo " make pro-init      Inicializar Terraform PRO"
 	@echo " make pro-validate  Validar configuracion PRO"
 	@echo " make pro-plan      Mostrar plan PRO"
-	@echo " make pro-up        Inicializar y aplicar PRO"
 	@echo " make pro-deploy    Generar plan y aplicar PRO"
 	@echo " make pro-destroy   Destruir PRO"
 	@echo " make pro-output    Mostrar outputs PRO"
@@ -49,16 +47,12 @@ dev-validate:
 dev-plan:
 	terraform -chdir=$(TF_DIR) plan -var-file=$(TF_VAR_FILE)
 
-dev-up:
-	terraform -chdir=$(TF_DIR) init
-	terraform -chdir=$(TF_DIR) apply -var-file=$(TF_VAR_FILE)
-
 dev-deploy:
 	terraform -chdir=$(TF_DIR) init
 	terraform -chdir=$(TF_DIR) plan -var-file=$(TF_VAR_FILE) -out=tfplan
 	terraform -chdir=$(TF_DIR) apply tfplan
 
-setup: dev-up
+setup: dev-deploy pro-deploy demo
 
 demo:
 	./demo.sh
@@ -77,7 +71,6 @@ dev-logs:
 	docker logs dev_web_2
 	docker logs dev_load_balancer
 	docker logs dev_database
-	docker logs dev_redis
 
 web-logs:
 	docker logs -f dev_web_1
@@ -100,10 +93,6 @@ pro-validate:
 
 pro-plan:
 	terraform -chdir=$(PRO_TF_DIR) plan -var-file=$(PRO_TF_VAR_FILE)
-
-pro-up:
-	terraform -chdir=$(PRO_TF_DIR) init
-	terraform -chdir=$(PRO_TF_DIR) apply -var-file=$(PRO_TF_VAR_FILE)
 
 pro-deploy:
 	terraform -chdir=$(PRO_TF_DIR) init
