@@ -33,9 +33,5 @@ venv/
 # Generated Files
 terraform/environments/*/generated/
 
-# Runtime demo evidence
-demo-evidence/*
-!demo-evidence/.gitkeep
-
 #Chunks content
 media/
