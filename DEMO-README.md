@@ -8,7 +8,7 @@ elimina contenedores o volúmenes.
 
 | Opción | Entorno | Prueba |
 |---|---|---|
-| 1 | PRO | Prueba el failover deteniendo brevemente `pro_web_1` y exige respuestas del Load Balancer desde otras réplicas; lo restaura y verifica que vuelva a recibir tráfico. Después mata el contenedor y comprueba el incremento de `RestartCount`, `unless-stopped` y el healthcheck. Por último, mantiene una caída hasta que Prometheus active `WebInstanceUnreachable` y Alertmanager registre el envío exitoso a Telegram. Requiere confirmación y puede tardar hasta 5 minutos. |
+| 1 | PRO | Prueba el failover deteniendo brevemente `pro_web_1` y exige respuestas del Load Balancer desde otras réplicas; lo restaura y verifica que vuelva a recibir tráfico. Después comprueba la recuperación automática de Docker y mantiene una caída hasta que Prometheus active `WebContainerMissing` para `pro_web_1` y Alertmanager registre el envío/contador Telegram correspondiente. Requiere confirmación y puede tardar hasta 5 minutos. |
 | 2 | PRO | Envía 20 solicitudes a `http://localhost:8082/instance`, cuenta qué réplicas responden y requiere observar al menos dos de las tres Web. |
 | 3 | DEV | Comprueba que `/var/lib/mysql` está montado desde `dev_mysql_data`, crea una tabla/valor temporal, para e inicia `dev_database`, espera a MySQL y lee el valor de nuevo. Elimina solo la tabla temporal; nunca borra el volumen ni los datos existentes. Requiere confirmación. |
 
@@ -19,11 +19,11 @@ documentados en [README.md](./README.md).
 
 ## Seguridad y recuperación
 
-- La opción 1 detiene y mata una réplica en PRO, y solo debe usarse en el
+- La opción 1 detiene una réplica en PRO, y solo debe usarse en el
   entorno local/aislado de la práctica, nunca en producción real o compartida.
-  La parada intencional se restaura con `docker start`; por separado, matar el
-  contenedor prueba la recuperación automática real de Docker.
-- `WebInstanceUnreachable` tiene `for: 2m` y Alertmanager `group_wait: 30s`.
+  La parada intencional se restaura al final con `docker start`.
+- `WebContainerMissing` tiene `for: 15s` y comprueba que cAdvisor deje de
+  informar de `pro_web_1` o que su última muestra sea antigua.
   La demo mantiene la réplica detenida hasta detectar la alerta en firing y un
   log `Notify success` del grupo Web en el receptor Telegram; no confunde la
   mera aceptación de la alerta por la API con la entrega del mensaje.

@@ -110,17 +110,24 @@ docker logs --tail 100 dev_load_balancer
 docker logs --tail 100 pro_load_balancer
 ```
 
-The interactive Docker demo includes PRO Web failover and load-balancer checks,
-plus a DEV MySQL-volume persistence check:
+The interactive Docker demo has three operational functions:
 
 ```bash
 ./demo.sh
 ```
 
-The failover test affects only the local/isolated PRO lab and the persistence
-test briefly restarts DEV MySQL. Read each confirmation prompt before
-proceeding. See [DEMO-README.md](./DEMO-README.md) for the exact behavior and
-safety details.
+1. **PRO failover and alerting:** stops `pro_web_1`, verifies traffic failover
+   to the other replicas, waits for
+   `WebContainerMissing` in Prometheus and checks Telegram through
+   Alertmanager, then restores the replica.
+2. **PRO load-balancer distribution:** sends 20 requests through the PRO load
+   balancer and verifies how the three Web replicas share traffic.
+3. **DEV MySQL persistence:** restarts `dev_database`, writes a temporary
+   marker, and verifies that the marker survives using the named MySQL volume.
+
+Read each confirmation prompt before proceeding. The failover test is intended
+only for the local/isolated PRO lab. See [DEMO-README.md](./DEMO-README.md)
+for the exact behavior and safety details.
 
 There is no Make target that stops the environment while explicitly preserving its containers. To stop the containers without destroying them:
 
@@ -139,8 +146,15 @@ Run `make help` to display the targets. `init` initializes a root, `validate` va
 |---|---|
 | DEV | `dev-init`, `dev-validate`, `dev-plan`, `dev-up`, `dev-deploy`, `dev-destroy`, `dev-output`, `dev-ps`, `dev-logs`, `web-logs`, `lb-logs`, `grafana-logs`, `dev-restart`, `setup` |
 | PRO | `pro-init`, `pro-validate`, `pro-plan`, `pro-up`, `pro-deploy`, `pro-destroy`, `pro-output`, `pro-ps` |
+| All environments | `destroyall`, `demo`, `help` |
 
 `dev-ps` lists all containers visible to Docker; `pro-ps` filters names beginning with `pro_`. `dev-logs` reads Web, load balancer, MySQL, and Redis logs, although Redis is not deployed in DEV, so that target can fail at its Redis command. `web-logs`, `lb-logs`, and `grafana-logs` follow DEV container logs. `dev-restart` destroys and reapplies DEV; it is not a stop-only operation.
+
+`destroyall` first kills every running Docker container, removes all Docker
+containers, and then destroys the DEV and PRO Terraform roots in that order.
+This is destructive and can remove resources and persisted state. It does not
+ask for a Terraform confirmation because both roots are destroyed with
+`-auto-approve`.
 
 ---
 
@@ -263,19 +277,25 @@ Modules encapsulate Docker resources and expose outputs for the root to connect 
 
 `terraform validate` does not replace `terraform plan`: validation does not establish that Docker can create every resource or that local variable values produce the intended runtime behavior. Review plans before deployment.
 
-## 3.2 Application Tests
+## 3.2 Infrastructure Tests
 
-There is no automated application test suite or `test` script in `app/package.json`; do not assume that `npm test` is configured. The health and instance endpoints can be checked with the demo or HTTP requests, but these are operational checks, not unit tests.
+`demo.sh` provides three operational functions:
 
-The utility [scripts/demo/load_test.py](./scripts/demo/load_test.py) generates bounded load for the demo. It is not an automated test suite.
+1. Stops `pro_web_1` and verifies load-balancer failover, Docker recovery,
+   Prometheus alert `WebContainerMissing`, and Telegram/Alertmanager
+   notification counters.
+2. Sends bounded traffic through the PRO load balancer and verifies that at
+   least two of the three Web replicas serve requests.
+3. Restarts `dev_database`, creates a temporary marker, verifies it is still
+   present after restart, and removes the marker without deleting the MySQL
+   volume.
 
-## 3.3 Infrastructure Tests
-
-`demo.sh` provides operational checks against PRO, including availability, load balancing, monitoring, logs, MinIO, networks, and alerts. Depending on the selected option, checks can generate load, restart services, or send notifications. Not all options were run during this review.
+The demo does not deploy or destroy Terraform resources. Its first and third
+functions request confirmation before changing container state.
 
 | Check | Status in this review |
 |---|---|
-| Expected PRO containers and primary endpoints | Executed using the demo's general validation option. |
+| PRO failover, load distribution, and alerting | The three demo functions describe the tests; runtime behavior must be confirmed by execution. |
 | DEV and PRO Terraform validation | Executed. |
 | Terraform formatting and script syntax checks | Executed. |
 | `terraform plan` for DEV and PRO | Not executed. |
@@ -283,7 +303,7 @@ The utility [scripts/demo/load_test.py](./scripts/demo/load_test.py) generates b
 | Runtime DEV/PRO log isolation after applying the configuration | Not executed. |
 | Actual Telegram message delivery | Not executed; the demo found Alertmanager but does not verify receipt of the final message. |
 
-## 3.4 Test Results and Outputs
+## 3.3 Test Results and Outputs
 
 The following results were observed in the local checkout during the preceding review:
 
@@ -296,8 +316,6 @@ The following results were observed in the local checkout during the preceding r
 | JavaScript syntax | `node --check app/src/app.js` and `node --check app/scripts/upload-video.js` | PASS | Both commands exited with code 0. |
 | Python syntax | `python3 -m py_compile scripts/demo/load_test.py` | PASS | Exit code 0. |
 | Diff whitespace | `git diff --check` | PASS | No whitespace errors in the reviewed changes. |
-| PRO operational validation | `bash demo.sh`, option 13 (read-only) | `21 PASS \| 0 FAIL \| 1 WARNING` | All 15 expected containers were running; `/health`, `/instance`, Prometheus, Grafana, and MinIO responded. Warning: Alertmanager was present, but Telegram delivery was not verified. |
-
 These are results from the environment at the time of execution and do not guarantee the state of a future deployment. No `terraform apply` or `terraform destroy` was run to produce these results.
 
 ---
@@ -320,7 +338,56 @@ Redis is enabled only in PRO. The application uses MySQL for persistent data and
 
 The web player uses MPEG-DASH manifests (`.mpd`) and media segments (`.m4s`). The `/video/stream/` route serves these objects from MinIO buckets and can fall back to the configured local media directory when an object is not in MinIO. The route supports byte-range requests for video segments.
 
-`app/scripts/upload-video.js` uploads a video directory containing `manifest.mpd` and `.m4s` segments to MinIO. Run the script with the required Node.js runtime and MinIO credentials configured; it is not needed for the base deployment.
+## 4.4 Upload a DASH Video
+
+The host utility [app/scripts/upload-video.js](./app/scripts/upload-video.js)
+uploads a prepared video directory to Silo/MinIO. It requires Node.js and the
+project dependencies:
+
+```bash
+cd app
+npm ci
+cd ..
+
+node app/scripts/upload-video.js media/Cortometraje
+```
+
+The argument must be a directory containing `manifest.mpd` and at least one
+`.m4s` segment. The script currently targets DEV by default:
+
+```text
+Endpoint: http://127.0.0.1:9000
+Container: dev_minio
+Manifest bucket: streamforge-manifests
+Chunk bucket: streamforge-chunks
+```
+
+It reads `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` from the Docker container
+if `MINIO_ACCESS_KEY` and `MINIO_SECRET_KEY` are not both supplied. It preserves
+the directory structure under the video name and verifies the size of every
+uploaded object after each transfer.
+
+To point the utility at another endpoint or container, set environment variables:
+
+```bash
+MINIO_ENDPOINT=http://127.0.0.1:9100 \
+MINIO_CONTAINER=pro_minio \
+node app/scripts/upload-video.js media/Cortometraje
+```
+
+For PRO, both variables must match the running PRO Silo. Credentials can also be
+provided explicitly:
+
+```bash
+MINIO_ENDPOINT=http://127.0.0.1:9100 \
+MINIO_ACCESS_KEY=<PRO_MINIO_USER> \
+MINIO_SECRET_KEY=<PRO_MINIO_PASSWORD> \
+node app/scripts/upload-video.js media/Cortometraje
+```
+
+The script does not ask for DEV or PRO interactively and does not register the
+video in MySQL. It only uploads objects; the administrator UI or API must add
+the corresponding title, duration, category, and manifest metadata.
 
 ---
 
@@ -384,7 +451,7 @@ PRO default thresholds (configurable):
 | CPU per container | 80% for 10 min | 95% for 5 min |
 | Memory per container | 85% for 10 min | 95% for 5 min |
 
-Service availability alerts use cAdvisor's Docker healthcheck state and container presence/freshness. A `container_last_seen` sample older than 45 seconds is treated as stale; alert `for` durations still apply after that threshold. These signals do not replace external HTTP/TCP probes. Host root filesystem thresholds were removed because cAdvisor's per-container filesystem usage/limit metrics do not measure total host disk capacity or free space.
+Service availability alerts use cAdvisor's Docker healthcheck state and container presence/freshness. `WebContainerMissing` detects a specific Web container through the `container` label when cAdvisor stops reporting it or the last sample becomes stale. DockerContainerUnhealthy and AllWebReplicasDown cover container health and the absence of healthy replicas. A `container_last_seen` sample older than 45 seconds is treated as stale; alert `for` durations still apply after that threshold. These signals do not replace external HTTP/TCP probes. Host root filesystem thresholds were removed because cAdvisor's per-container filesystem usage/limit metrics do not measure total host disk capacity or free space.
 
 The bot token is mounted as a file in Alertmanager; the chat ID is used in the generated configuration. Configure both locally for PRO and do not publish them. The presence of Alertmanager does not prove that Telegram received a message; verify delivery in the configured chat.
 
@@ -413,6 +480,7 @@ Actual network names have an environment prefix (for example, `dev_` and `pro_`)
 - Docker Compose and `.env.example` are not present; deployment uses Terraform and local variables.
 - There is no automated application unit or integration test suite.
 - HAProxy request and backend metrics are not collected.
+- The video-upload utility targets DEV by default and does not select an environment interactively. It requires explicit endpoint/container or credential variables for PRO.
 - Telegram delivery requires valid credentials and confirmation in the receiving chat.
 - DEV and PRO are local deployments managed by separate Terraform roots; no remote shared state is configured here.
 - There is no Make target that guarantees a stop while preserving resources; `destroy` targets can affect persisted data.

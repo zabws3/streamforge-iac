@@ -222,7 +222,7 @@ select:disabled {
     display: grid;
     width: min(var(--content-width), calc(100% - 64px));
     min-height: 76px;
-    grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr);
+    grid-template-columns: minmax(190px, 1fr) auto minmax(500px, 1fr);
     align-items: center;
     gap: 28px;
     margin: 0 auto;
@@ -304,13 +304,16 @@ select:disabled {
 }
 
 .instance-indicator {
-    max-width: 185px;
+    width: 240px;
+    max-width: 240px;
+    flex: 0 0 240px;
     overflow: hidden;
     padding: 6px 10px;
     border: 1px solid rgba(126, 153, 183, 0.18);
     border-radius: 999px;
     color: var(--color-muted);
     font-size: 0.7rem;
+    text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
 }

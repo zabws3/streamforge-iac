@@ -123,7 +123,7 @@ get_instance() {
         python3 -c 'import json,sys; print(json.load(sys.stdin)["instance"])'
 }
 
-prometheus_web_alert_state() {
+prometheus_web_container_alert_state() {
     docker exec "$PRO_PROMETHEUS" wget -qO- http://127.0.0.1:9090/api/v1/rules |
         python3 -c '
 import json,sys
@@ -131,11 +131,11 @@ container=sys.argv[1]
 groups=json.load(sys.stdin).get("data",{}).get("groups",[])
 rules=[
     rule for group in groups for rule in group.get("rules",[])
-    if rule.get("name") == "WebInstanceUnreachable"
+    if rule.get("name") == "WebContainerMissing"
     and rule.get("labels",{}).get("container") == container
 ]
 if len(rules) != 1:
-    raise SystemExit(f"Expected one WebInstanceUnreachable rule for {container}; found {len(rules)}")
+    raise SystemExit(f"Expected one WebContainerMissing rule for {container}; found {len(rules)}")
 print(rules[0].get("state","unknown"))
 ' "$PRO_WEB"
 }
@@ -179,7 +179,7 @@ import json,sys
 container=sys.argv[1]
 alerts=json.load(sys.stdin)
 found=any(
-    alert.get("labels",{}).get("alertname") == "WebInstanceUnreachable"
+    alert.get("labels",{}).get("alertname") == "WebContainerMissing"
     and alert.get("labels",{}).get("container") == container
     for alert in alerts
 )
@@ -191,22 +191,22 @@ alertmanager_can_resolve_telegram() {
     docker exec "$PRO_ALERTMANAGER" busybox nslookup -type=A api.telegram.org >/dev/null 2>&1
 }
 
-web_alert_is_inactive() {
+web_container_alert_is_inactive() {
     local state
-    if ! state="$(prometheus_web_alert_state)"; then
-        fail "No se pudo consultar la alerta WebInstanceUnreachable en Prometheus."
+    if ! state="$(prometheus_web_container_alert_state)"; then
+        fail "No se pudo consultar la alerta WebContainerMissing en Prometheus."
         return 1
     fi
     [[ "$state" == "inactive" ]]
 }
 
-wait_for_web_alert_inactive() {
+wait_for_web_container_alert_inactive() {
     local timeout="$1"
     local deadline=$((SECONDS + timeout))
     local state
     while (( SECONDS < deadline )); do
-        if ! state="$(prometheus_web_alert_state)"; then
-            fail "No se pudo consultar la alerta WebInstanceUnreachable en Prometheus."
+        if ! state="$(prometheus_web_container_alert_state)"; then
+            fail "No se pudo consultar la alerta WebContainerMissing en Prometheus."
             return 1
         fi
         if [[ "$state" == "inactive" ]]; then
@@ -214,7 +214,7 @@ wait_for_web_alert_inactive() {
         fi
         sleep 5
     done
-    fail "WebInstanceUnreachable para $PRO_WEB no volvió a inactive."
+    fail "WebContainerMissing para $PRO_WEB no volvió a inactive."
     return 1
 }
 
@@ -311,7 +311,7 @@ print_pro_demo_summary() {
     printf 'Respuestas indebidas de la réplica detenida: %d; respuestas indebidas post-recovery: %d\n' \
         "$pro_demo_failover_violations" "$pro_demo_post_violations"
     summary_result "$pro_demo_failover" "Failover atendido solo por las otras réplicas."
-    summary_result "$pro_demo_alert_fired" "Prometheus: WebInstanceUnreachable -> FIRING."
+    summary_result "$pro_demo_alert_fired" "Prometheus: WebContainerMissing -> FIRING."
     summary_result "$pro_demo_alertmanager_received" "Alertmanager recibió la alerta de $PRO_WEB."
     summary_result "$pro_demo_telegram_confirmed" "Notificación Telegram confirmada (contador +$pro_demo_telegram_delta; fallos +$pro_demo_telegram_failures)."
     printf 'Estado final observado de la alerta: %s\n' "$pro_demo_alert_state"
@@ -451,11 +451,11 @@ demo_pro_recovery() {
     check_running_healthy "$PRO_PROMETHEUS"
     check_running_healthy "$PRO_ALERTMANAGER"
 
-    if ! web_alert_is_inactive; then
-        fail "La regla WebInstanceUnreachable para $PRO_WEB no está cargada/inactiva o no se pudo consultar."
+    if ! web_container_alert_is_inactive; then
+        fail "La regla WebContainerMissing para $PRO_WEB no está cargada/inactiva o no se pudo consultar."
         return 1
     fi
-    printf '[ALERT] WebInstanceUnreachable -> inactive\n'
+    printf '[ALERT] WebContainerMissing -> inactive\n'
 
     if ! alertmanager_can_resolve_telegram; then
         fail "Alertmanager no puede resolver api.telegram.org; se cancela antes de detener una réplica."
@@ -487,7 +487,7 @@ demo_pro_recovery() {
     fi
     pass "Docker, las tres Web, Load Balancer, Prometheus y Alertmanager están operativos."
 
-    if ! confirm "La demo enviará solicitudes reales a PRO y detendrá $PRO_WEB con docker stop --time 5 hasta confirmar WebInstanceUnreachable y una notificación Telegram. La comprobación de FIRING/Telegram será manual con ENTER. Si la regla activa no dispara, se restaurará automáticamente y el resultado será incompleto. Solo continuar en PRO local/aislado, nunca en producción compartida."; then
+    if ! confirm "La demo enviará solicitudes reales a PRO y detendrá $PRO_WEB con docker stop --time 5 hasta confirmar WebContainerMissing y una notificación Telegram. La comprobación de FIRING/Telegram será manual con ENTER. Si la regla activa no dispara, se restaurará automáticamente y el resultado será incompleto. Solo continuar en PRO local/aislado, nunca en producción compartida."; then
         info "Prueba cancelada; no se modificó ningún contenedor."
         return 0
     fi
@@ -544,7 +544,7 @@ demo_pro_recovery() {
         return 1
     fi
 
-    if ! web_alert_is_inactive; then
+    if ! web_container_alert_is_inactive; then
         fail "La alerta dejó de estar inactiva antes de la caída; no se detendrá ninguna réplica."
         pro_demo_failed=1
         print_pro_demo_summary
@@ -610,19 +610,19 @@ demo_pro_recovery() {
 
     info "FASE 5 — Comprobación manual de Prometheus Firing y Telegram"
     while true; do
-        pause_enter "Abre Prometheus/Alertmanager, verifica WebInstanceUnreachable y Telegram. Cuando quieras que el script compruebe el estado,"
+        pause_enter "Abre Prometheus/Alertmanager, verifica WebContainerMissing y Telegram. Cuando quieras que el script compruebe el estado,"
         local state notification_after total_after failed_after active_alerts_after
-        if ! state="$(prometheus_web_alert_state)"; then
-            fail "No se pudo consultar la alerta WebInstanceUnreachable."
+        if ! state="$(prometheus_web_container_alert_state)"; then
+            fail "No se pudo consultar la alerta WebContainerMissing."
             pro_demo_failed=1
             break
         fi
         pro_demo_alert_state="$state"
-        printf '[ALERT] WebInstanceUnreachable -> %s\n' "$state"
+        printf '[ALERT] WebContainerMissing -> %s\n' "$state"
         if [[ "$state" == "firing" ]]; then
             pro_demo_alert_fired=1
             if alertmanager_has_web_alert; then
-                info "Alertmanager registró WebInstanceUnreachable para $PRO_WEB."
+                info "Alertmanager registró WebContainerMissing para $PRO_WEB."
                 pro_demo_alertmanager_received=1
                 if active_alerts_after="$(alertmanager_active_alert_count)" &&
                     [[ "$active_alerts_after" == "1" ]] &&
@@ -658,7 +658,7 @@ demo_pro_recovery() {
     done
 
     if (( !pro_demo_alert_fired )); then
-        fail "No se confirmó WebInstanceUnreachable en estado FIRING para $PRO_WEB."
+        fail "No se confirmó WebContainerMissing en estado FIRING para $PRO_WEB."
         pro_demo_failed=1
     fi
     if (( pro_demo_alert_fired && !pro_demo_alertmanager_received )); then
@@ -683,7 +683,7 @@ demo_pro_recovery() {
         pro_demo_failed=1
     fi
 
-    if ! wait_for_web_alert_inactive 90; then
+    if ! wait_for_web_container_alert_inactive 90; then
         pro_demo_failed=1
     fi
 

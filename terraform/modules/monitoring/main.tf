@@ -351,7 +351,6 @@ resource "docker_container" "alloy" {
 
   command = [
     "run",
-    "--server.http.listen-addr=0.0.0.0:12345",
     "--storage.path=/var/lib/alloy/data",
     "/etc/alloy/config.alloy"
   ]
@@ -382,9 +381,9 @@ resource "docker_container" "alloy" {
   }
 
   lifecycle {
+    # Force the replacement of this resource whenever the Alloy configuration file changes
     replace_triggered_by = [local_file.alloy_config]
   }
-
   depends_on = [docker_container.loki]
 }
 
