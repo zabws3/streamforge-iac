@@ -389,7 +389,7 @@ resource "docker_container" "alloy" {
 }
 
 
-############### ALLOY - LOKI ###############
+############### GRAFANA - LOKI ###############
 
 resource "local_file" "grafana_loki_datasource" {
   filename             = abspath("${path.root}/generated/datasource-loki.yml")

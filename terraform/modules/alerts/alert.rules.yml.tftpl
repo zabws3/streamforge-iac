@@ -21,20 +21,6 @@ groups:
           description: "cAdvisor has not detected ${container} for more than 20 seconds."
           action: "Check the Docker container status and logs."
 %{ endfor ~}
-%{ for container in web_containers ~}
-      - alert: WebInstanceUnreachable
-        expr: (container_health_state{name="${container}"} == 0 and on(name) (time() - container_last_seen{name="${container}"} < 45)) and on() (up{job="cadvisor"} == 1)
-        for: 2m
-        labels:
-          severity: critical
-          service: streamforge-web
-          container: "${container}"
-        annotations:
-          summary: "A StreamForge Web instance is unhealthy"
-          description: "Docker reports the configured HTTP healthcheck for ${container} as unhealthy."
-          action: "Check the Web container healthcheck, dependencies, and logs."
-%{ endfor ~}
-
       - alert: DockerContainerUnhealthy
         expr: (container_health_state{name=~"${environment}_.*"} == 0 and on(name) (time() - container_last_seen{name=~"${environment}_.*"} < 45)) and on() (up{job="cadvisor"} == 1)
         for: 1m
@@ -51,7 +37,7 @@ groups:
           (
             sum(
               (container_health_state{name=~"^${environment}_web_[0-9]+$"} == 1)
-              and on(name) (time() - container_last_seen{name=~"^${environment}_web_[0-9]+$"} < 45)
+              and on(name) (time() - container_last_seen{name=~"^${environment}_web_[0-9]+$"} < 20)
             )
             or vector(0)
           )
@@ -70,8 +56,8 @@ groups:
         expr: |
           (
             container_health_state{name="${environment}_load_balancer"} == 0
-            or time() - container_last_seen{name="${environment}_load_balancer"} > 45
             or absent(container_last_seen{name="${environment}_load_balancer"})
+            or (time() - container_last_seen{name="${environment}_load_balancer"} > 20)
           )
           and on() (up{job="cadvisor"} == 1)
         for: 2m
@@ -88,8 +74,8 @@ groups:
         expr: |
           (
             container_health_state{name="${environment}_minio"} == 0
-            or time() - container_last_seen{name="${environment}_minio"} > 45
             or absent(container_last_seen{name="${environment}_minio"})
+            or (time() - container_last_seen{name="${environment}_minio"} > 20)
           )
           and on() (up{job="cadvisor"} == 1)
         for: 2m
@@ -106,8 +92,8 @@ groups:
         expr: |
           (
             container_health_state{name="${environment}_database"} == 0
-            or time() - container_last_seen{name="${environment}_database"} > 45
             or absent(container_last_seen{name="${environment}_database"})
+            or (time() - container_last_seen{name="${environment}_database"} > 20)
           )
           and on() (up{job="cadvisor"} == 1)
         for: 2m
@@ -125,8 +111,8 @@ groups:
         expr: |
           (
             container_health_state{name="${environment}_redis"} == 0
-            or time() - container_last_seen{name="${environment}_redis"} > 45
             or absent(container_last_seen{name="${environment}_redis"})
+            or (time() - container_last_seen{name="${environment}_redis"} > 20)
           )
           and on() (up{job="cadvisor"} == 1)
         for: 2m

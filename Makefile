@@ -8,7 +8,7 @@ TF_VAR_FILE := dev.tfvars
 PRO_TF_DIR := terraform/environments/pro
 PRO_TF_VAR_FILE := pro.tfvars
 
-.PHONY: help setup demo dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart pro-init pro-validate pro-plan pro-up pro-deploy pro-destroy pro-output pro-ps
+.PHONY: help setup demo dev-init dev-validate dev-plan dev-up dev-deploy dev-destroy dev-output dev-ps dev-logs web-logs lb-logs grafana-logs dev-restart pro-init pro-validate pro-plan pro-up pro-deploy pro-destroy pro-output pro-ps destroyall
 
 help:
 	@echo ""
@@ -37,6 +37,7 @@ help:
 	@echo " make pro-destroy   Destruir PRO"
 	@echo " make pro-output    Mostrar outputs PRO"
 	@echo " make pro-ps        Ver contenedores PRO"
+	@echo " make destroyall    Detener y eliminar todos los contenedores Docker, y destruir DEV y PRO"
 	@echo ""
 
 dev-init:
@@ -117,3 +118,9 @@ pro-output:
 
 pro-ps:
 	docker ps -a --filter name=pro_ --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+destroyall:
+	docker ps -q | xargs -r docker kill
+	docker ps -aq | xargs -r docker rm -f
+	terraform -chdir=$(TF_DIR) destroy -var-file=$(TF_VAR_FILE) -auto-approve
+	terraform -chdir=$(PRO_TF_DIR) destroy -var-file=$(PRO_TF_VAR_FILE) -auto-approve

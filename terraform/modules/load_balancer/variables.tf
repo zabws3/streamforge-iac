@@ -12,7 +12,7 @@ variable "networks" {
 
 variable "image" {
   type    = string
-  default = "nginx:alpine"
+  default = "haproxy:3.2-alpine"
 }
 
 variable "external_port" {

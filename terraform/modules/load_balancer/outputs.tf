@@ -1,9 +1,9 @@
 output "container_id" {
-  value = docker_container.nginx.id
+  value = docker_container.haproxy.id
 }
 
 output "container_name" {
-  value = docker_container.nginx.name
+  value = docker_container.haproxy.name
 }
 
 output "external_port" {

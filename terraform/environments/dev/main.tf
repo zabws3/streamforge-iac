@@ -1,12 +1,3 @@
-moved {
-  from = module.monitoring.docker_volume.alertmanager_data
-  to   = docker_volume.retained_alertmanager_data
-}
-
-resource "docker_volume" "retained_alertmanager_data" {
-  name = "${var.environment}_alertmanager_data"
-}
-
 module "network" {
   source      = "../../modules/network"
   environment = var.environment
@@ -37,8 +28,6 @@ module "storage" {
   ]
   root_user     = var.minio_user
   root_password = var.minio_password
-  api_port      = 9000
-  console_port  = 9001
 
   depends_on = [module.network]
 }

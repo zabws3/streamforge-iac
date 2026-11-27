@@ -57,7 +57,6 @@ variable "loki_image" {
   default = "grafana/loki:latest"
 }
 
-
 variable "alloy_image" {
   type    = string
   default = "grafana/alloy:latest"

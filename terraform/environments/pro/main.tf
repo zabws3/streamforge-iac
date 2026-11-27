@@ -1,23 +1,3 @@
-moved {
-  from = module.monitoring.local_file.alert_rules
-  to   = module.alerts.local_file.alert_rules
-}
-
-moved {
-  from = module.monitoring.docker_image.alertmanager
-  to   = module.alerts.docker_image.alertmanager
-}
-
-moved {
-  from = module.monitoring.docker_volume.alertmanager_data
-  to   = module.alerts.docker_volume.alertmanager_data
-}
-
-moved {
-  from = module.monitoring.docker_container.alertmanager
-  to   = module.alerts.docker_container.alertmanager
-}
-
 module "network" {
   source      = "../../modules/network"
   environment = var.environment

@@ -82,7 +82,7 @@ make pro-deploy
 
 | Service | DEV | PRO | Exposure |
 |---|---:|---:|---|
-| Application through Nginx Load Balancer | `http://localhost:8081` | `http://localhost:8082` | Published host port |
+| Application through HAProxy Load Balancer | `http://localhost:8081` | `http://localhost:8082` | Published host port |
 | MinIO API | `http://localhost:9000` | `http://localhost:9100` | Bound to `127.0.0.1` |
 | MinIO Console | `http://localhost:9001` | `http://localhost:9101` | Bound to `127.0.0.1` |
 | Grafana | `http://localhost:3001` | `http://localhost:3002` | Bound to `127.0.0.1` |
@@ -151,7 +151,7 @@ Run `make help` to display the targets. `init` initializes a root, `validate` va
 | Component | Purpose | Technology |
 |---|---|---|
 | Web application | UI and health, instance, and video-streaming endpoints. | Node.js 22, Express |
-| Load balancer | Distributes requests among Web replicas. | Nginx |
+| Load balancer | Distributes requests, checks Web health, and keeps session affinity. | HAProxy |
 | Database | Relational application data. | MySQL |
 | Cache | Cache and session storage, enabled in PRO. | Redis |
 | Media storage | S3-compatible API, console, and video objects. | MinIO |
@@ -164,7 +164,7 @@ Run `make help` to display the targets. `init` initializes a root, `validate` va
 | Log storage | Receives and queries logs. | Loki |
 | Alerts and notifications | Evaluates rules and routes Telegram notifications; PRO only. | Prometheus, Alertmanager |
 
-Nginx request and upstream metrics are not collected. The environment roots define the deployed services; the main differences are summarized in [the environment access table](#15-environment-access-urls).
+HAProxy request and backend metrics are not collected. The environment roots define the deployed services; the main differences are summarized in [the environment access table](#15-environment-access-urls).
 
 ## 2.2 Overall Architecture
 
@@ -172,7 +172,7 @@ The diagram shows the main service relationships. Docker networks are created wi
 
 ```mermaid
 flowchart LR
-    U[User / browser] -->|HTTP :8081 DEV / :8082 PRO| LB[Nginx Load Balancer]
+    U[User / browser] -->|HTTP :8081 DEV / :8082 PRO| LB[HAProxy Load Balancer]
     LB --> W1[Web 1]
     LB --> W2[Web 2]
     LB -.->|PRO only| W3[Web 3]
@@ -306,7 +306,9 @@ These are results from the environment at the time of execution and do not guara
 
 ## 4.1 Load Balancing and Round Robin
 
-Nginx receives application traffic and distributes requests among the configured replicas using the default round-robin algorithm of an `upstream` block (`least_conn` is not configured). DEV deploys two Web replicas; PRO deploys three. The configuration retries another replica on connection errors, timeouts, and HTTP 502, 503, or 504 responses. Replicas do not publish host ports; access them through `localhost:8081` (DEV) or `localhost:8082` (PRO).
+HAProxy distributes requests among the configured replicas using round robin and actively probes each replica's `/health` endpoint every 2 seconds. Two consecutive failed checks mark a replica down; two successful checks are required before it receives traffic again. Requests are retried and redispatched to another available replica on failure. HAProxy learns session affinity from the application's `streamforge.sid` cookie, preserving the existing affinity behavior without adding a second client cookie. If a pinned replica is down, traffic is sent to another healthy replica. DEV deploys two Web replicas; PRO deploys three. Replicas do not publish host ports; access them through `localhost:8081` (DEV) or `localhost:8082` (PRO).
+
+Active checks bound detection time but cannot eliminate failures in the interval before a replica is marked down. HAProxy retries failed requests to another replica when possible. DEV stores sessions in each Web process's in-memory default store, so a failed replica's existing sessions cannot be recovered on another replica; PRO uses Redis for shared sessions.
 
 The `/instance` endpoint helps identify which replica served a request. The demo has options for observing request distribution and failover; those scenarios were not executed in this review.
 
@@ -344,7 +346,7 @@ Docker volumes survive normal container stops. Destroying or removing a volume m
 
 Prometheus collects cAdvisor metrics and scrapes itself; PRO also scrapes Alertmanager. cAdvisor reports container CPU, memory, network, OOM, healthcheck, and (with its disk collector enabled) per-container filesystem metrics. Docker healthchecks run inside their containers; they do not prove external HTTP/TCP reachability or measure probe latency. The filesystem metrics describe container filesystems, not total host root filesystem usage/free space, so host-disk alerting is not available from this configuration.
 
-Grafana queries the Prometheus and Loki instance for its own environment. Grafana and Prometheus ports bind to `127.0.0.1`, limiting their published access to the local host by default. Nginx request and upstream metrics are not collected.
+Grafana queries the Prometheus and Loki instance for its own environment. Grafana and Prometheus ports bind to `127.0.0.1`, limiting their published access to the local host by default. HAProxy request and backend metrics are not collected.
 
 PromQL is Prometheus's query language. For example, the dashboard uses:
 
@@ -410,7 +412,7 @@ Actual network names have an environment prefix (for example, `dev_` and `pro_`)
 
 - Docker Compose and `.env.example` are not present; deployment uses Terraform and local variables.
 - There is no automated application unit or integration test suite.
-- Nginx request and upstream metrics are not collected.
+- HAProxy request and backend metrics are not collected.
 - Telegram delivery requires valid credentials and confirmation in the receiving chat.
 - DEV and PRO are local deployments managed by separate Terraform roots; no remote shared state is configured here.
 - There is no Make target that guarantees a stop while preserving resources; `destroy` targets can affect persisted data.
